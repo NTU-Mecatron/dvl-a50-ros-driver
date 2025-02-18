@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import socket
 import json
 import rospy
@@ -42,7 +42,7 @@ def getData():
 			rospy.logerr("Lost connection with the DVL, reinitiating the connection: {}".format(err))
 			connect()
 			continue
-		raw_data = raw_data + rec
+		raw_data = raw_data + rec.decode()
 	raw_data = oldJson + raw_data
 	oldJson = ""
 	raw_data = raw_data.split('\n')
