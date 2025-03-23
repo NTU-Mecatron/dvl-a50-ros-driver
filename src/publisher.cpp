@@ -13,6 +13,31 @@ DVLA50Publisher::DVLA50Publisher() : sock_(-1) {
     pub_ = nh_.advertise<waterlinked_a50_ros_driver::DVL>("dvl/data", 10);
 
     connect();
+
+    std::string reset_dead_reckoning = "{\"command\": \"reset_dead_reckoning\"}"
+    send(sock_, reset_dead_reckoning.c_str(), reset_dead_reckoning.size(), 0);
+    ROS_INFO("Reset Dead Reckoning command sent")
+
+    ros::Duration(0.5).sleep(); // wait before polling dr status success
+    std::string _dr_status_response = getData();
+    try {
+        json resp = json::parse(_dr_status_response);
+        if (resp["type"] == "response" && resp["response_to"] == "reset_dead_reckoning") {
+            if (resp["success"]) {
+                ROS_INFO("Dead reckoning reset successful");
+                ros::Duration(0.05).sleep(); // wait 50ms for values to zero out
+            } else {
+                ROS_ERROR("Dead reckoning reset failed: %s", 
+                         resp["error_message"].get<std::string>().c_str());
+            }
+        } else {
+            ROS_WARN("Unexpected response to reset command: %s", response.c_str());
+        }
+    } catch (const std::exception& e) {
+        ROS_ERROR("Failed to parse reset response: %s", e.what());
+    }
+}
+
 }
 
 DVLA50Publisher::~DVLA50Publisher() {
@@ -99,41 +124,52 @@ void DVLA50Publisher::run() {
         if (do_log_raw_data_) {
             ROS_INFO("%s", raw_data.c_str());
             pub_raw_.publish(raw_msg);
-            if (data["type"] != "velocity") {
-                continue;
+            continue;
+        }
+        // Handle both velocity and position messages
+        if (data["type"] == "position") {
+            // Update position and attitude data
+            dvl_msg_.position.x = data["x"];
+            dvl_msg_.position.y = data["y"];
+            dvl_msg_.position.z = data["z"];
+            dvl_msg_.attitude = {
+                data["roll"],
+                data["pitch"],
+                data["yaw"]
+            };
+            dvl_msg_.std = data["std"];
+        }
+        else if (data["type"] == "velocity") {
+            dvl_msg_.header.stamp = ros::Time::now();
+            dvl_msg_.header.frame_id = "dvl_link";
+            dvl_msg_.time = data["time"];
+            dvl_msg_.velocity.x = data["vx"];
+            dvl_msg_.velocity.y = data["vy"];
+            dvl_msg_.velocity.z = data["vz"];
+            dvl_msg_.fom = data["fom"];
+            dvl_msg_.altitude = data["altitude"];
+            dvl_msg_.velocity_valid = data["velocity_valid"];
+            dvl_msg_.status = data["status"];
+            dvl_msg_.form = data["format"];
+
+            for (int i = 0; i < 4; ++i) {
+                auto& beam = (i == 0) ? beam0_ : (i == 1) ? beam1_ : (i == 2) ? beam2_ : beam3_;
+                const auto& trans = data["transducers"][i];
+                
+                beam.id = trans["id"];
+                beam.velocity = trans["velocity"];
+                beam.distance = trans["distance"];
+                beam.rssi = trans["rssi"];
+                beam.nsd = trans["nsd"];
+                beam.valid = trans["beam_valid"];
             }
-        } else {
-            if (data["type"] != "velocity") {
-                continue;
-            }
-            pub_raw_.publish(raw_msg);
+
+            dvl_msg_.beams = {beam0_, beam1_, beam2_, beam3_};
+        }
+        else {
+            continue;
         }
 
-        dvl_msg_.header.stamp = ros::Time::now();
-        dvl_msg_.header.frame_id = "dvl_link";
-        dvl_msg_.time = data["time"];
-        dvl_msg_.velocity.x = data["vx"];
-        dvl_msg_.velocity.y = data["vy"];
-        dvl_msg_.velocity.z = data["vz"];
-        dvl_msg_.fom = data["fom"];
-        dvl_msg_.altitude = data["altitude"];
-        dvl_msg_.velocity_valid = data["velocity_valid"];
-        dvl_msg_.status = data["status"];
-        dvl_msg_.form = data["format"];
-
-        for (int i = 0; i < 4; ++i) {
-            auto& beam = (i == 0) ? beam0_ : (i == 1) ? beam1_ : (i == 2) ? beam2_ : beam3_;
-            const auto& trans = data["transducers"][i];
-            
-            beam.id = trans["id"];
-            beam.velocity = trans["velocity"];
-            beam.distance = trans["distance"];
-            beam.rssi = trans["rssi"];
-            beam.nsd = trans["nsd"];
-            beam.valid = trans["beam_valid"];
-        }
-
-        dvl_msg_.beams = {beam0_, beam1_, beam2_, beam3_};
         pub_.publish(dvl_msg_);
 
         rate.sleep();
