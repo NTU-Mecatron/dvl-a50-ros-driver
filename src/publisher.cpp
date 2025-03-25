@@ -1,4 +1,4 @@
-#include <waterlinked_a50_ros_driver/publisher.hpp>
+#include <dvl_a50_ros_driver/publisher.hpp>
 #include <nlohmann/json.hpp>
 #include <iostream>
 
@@ -10,13 +10,13 @@ DVLA50Publisher::DVLA50Publisher() : sock_(-1) {
     do_log_raw_data_ = ros::param::param<bool>("~do_log_raw_data", false);
 
     pub_raw_ = nh_.advertise<std_msgs::String>("dvl/json_data", 10);
-    pub_ = nh_.advertise<waterlinked_a50_ros_driver::DVL>("dvl/data", 10);
+    pub_ = nh_.advertise<dvl_a50_ros_driver::DVL>("dvl/data", 10);
 
     connect();
 
-    std::string reset_dead_reckoning = "{\"command\": \"reset_dead_reckoning\"}"
+    std::string reset_dead_reckoning = "{\"command\": \"reset_dead_reckoning\"}";
     send(sock_, reset_dead_reckoning.c_str(), reset_dead_reckoning.size(), 0);
-    ROS_INFO("Reset Dead Reckoning command sent")
+    ROS_INFO("Reset Dead Reckoning command sent");
 
     ros::Duration(0.5).sleep(); // wait before polling dr status success
     std::string _dr_status_response = getData();
@@ -31,14 +31,13 @@ DVLA50Publisher::DVLA50Publisher() : sock_(-1) {
                          resp["error_message"].get<std::string>().c_str());
             }
         } else {
-            ROS_WARN("Unexpected response to reset command: %s", response.c_str());
+            ROS_WARN("Unexpected response to reset command: %s", _dr_status_response.c_str());
         }
     } catch (const std::exception& e) {
         ROS_ERROR("Failed to parse reset response: %s", e.what());
     }
 }
 
-}
 
 DVLA50Publisher::~DVLA50Publisher() {
     if (sock_ >= 0) {

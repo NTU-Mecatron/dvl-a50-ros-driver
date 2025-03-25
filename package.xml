@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>waterlinked_a50_ros_driver</name>
+  <name>dvl_a50_ros_driver</name>
   <version>0.0.0</version>
   <description>The waterlinked_a50 package</description>
 

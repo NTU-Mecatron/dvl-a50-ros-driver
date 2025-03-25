@@ -3,14 +3,14 @@
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
-#include <waterlinked_a50_ros_driver/DVL.h>
-#include <waterlinked_a50_ros_driver/DVLBeam.h>
+#include <dvl_a50_ros_driver/DVL.h>
+#include <dvl_a50_ros_driver/DVLBeam.h>
 
 class DVLA50Subscriber {
 public:
     DVLA50Subscriber();
     void callbackRAW(const std_msgs::String::ConstPtr& msg);
-    void callback(const waterlinked_a50_ros_driver::DVL::ConstPtr& msg);
+    void callback(const dvl_a50_ros_driver::DVL::ConstPtr& msg);
 
 private:
     ros::NodeHandle nh_;

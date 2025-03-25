@@ -6,8 +6,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <std_msgs/String.h>
-#include <waterlinked_a50_ros_driver/DVL.h>
-#include <waterlinked_a50_ros_driver/DVLBeam.h>
+#include <dvl_a50_ros_driver/DVL.h>
+#include <dvl_a50_ros_driver/DVLBeam.h>
 
 class DVLA50Publisher {
 public:
@@ -29,11 +29,11 @@ private:
     bool do_log_raw_data_;
     std::string old_json_;
 
-    waterlinked_a50_ros_driver::DVL dvl_msg_;
-    waterlinked_a50_ros_driver::DVLBeam beam0_;
-    waterlinked_a50_ros_driver::DVLBeam beam1_;
-    waterlinked_a50_ros_driver::DVLBeam beam2_;
-    waterlinked_a50_ros_driver::DVLBeam beam3_;
+    dvl_a50_ros_driver::DVL dvl_msg_;
+    dvl_a50_ros_driver::DVLBeam beam0_;
+    dvl_a50_ros_driver::DVLBeam beam1_;
+    dvl_a50_ros_driver::DVLBeam beam2_;
+    dvl_a50_ros_driver::DVLBeam beam3_;
 };
 
 #endif
