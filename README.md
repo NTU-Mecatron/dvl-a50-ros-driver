@@ -9,13 +9,16 @@ Water Linked A50 is, by far, the world's smallest commercially available Doppler
 ![Image of Water Linked A50](img/DSC04478_1600_web.jpg?raw=true "Water Linked DVL A50")
 
 ### Prerequisites
-The package has been tested with ROS Kinetic, and should work with most distros of ROS. Although using it with distros older than Hydro may require some tweeking. The package is coded in Python for easier readability, as such you would need to have Python installed. Preferably Python 2.7 as some distros of ROS doesn't support Python 3.
+The package has been tested with ROS Noetic, Ubuntu 20.04. While we recommend the C++ version, the Python version of the code has been adjusted and tested to work with all Python >=3.6. For C++, install the following dependencies:
+```bash
+sudo apt-get install nlohmann-json3-dev
+```
 
 ## Installation
 Assuming you created your catkin workspace at the default location. And have git installed. The below steps should work:
 ```bash
 cd ~/catkin_ws/src
-git clone -b master https://github.com/waterlinked/dvl-a50-ros-driver.git
+git clone -b master git@github.com:NTU-Mecatron/dvl-a50-ros-driver.git
 cd ~/catkin_ws
 catkin_make
 ```
@@ -25,19 +28,19 @@ Find the DVLs IP address. Once that's done, the package and it's components can 
 
 **To run the publisher that listens to the TCP port and sends the data to ROS**
 ```bash
-rosrun waterlinked_a50_ros_driver publisher.py _ip:=192.168.2.95
+roslaunch dvl_a50_ros_driver launch_dvl.launch
 ```
 
-where TCP_IP should be replaced by the IP of the DVL. You can also display the raw DVL data in the terminal by specifying the argument "do_log_data":
+The default IP address is 192.168.194.95 which is always made available by the a50 be default. To replace IP of the DVL, specify the argument "ip":
 
 **To run the publisher that listens to the TCP port, displays the raw data in the DVL and sends the data to ROS**
 ```bash
-rosrun waterlinked_a50_ros_driver publisher.py _ip:=192.168.2.95 _do_log_raw_data:=true
+rosrun dvl_a50_ros_driver publisher.py _ip:=192.168.2.95 _do_log_raw_data:=true
 ```
 
 **To run a subscriber node that listens to the DVL topic. Helpful for debugging or checking if everything is running as it should be. Choose between "subscriber_gui.py" and "subscriber.py". The GUI makes reading data visually much easier. While the non-GUI version makes it easier to read through the code to see how you can implement code yourself.**
 ```bash
-rosrun waterlinked_a50_ros_driver subscriber_gui.py
+rosrun dvl_a50_ros_driver subscriber_gui.py
 ```
 ![GUI Subscriber](img/a50_gui.png?raw=true "Interface as seen when running the GUI version of the subscriber")
 
