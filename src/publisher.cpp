@@ -126,7 +126,7 @@ void DVLA50Publisher::run() {
             continue;
         }
         // Handle both velocity and position messages
-        if (data["type"] == "position") {
+        if (data["type"] == "position_local") {
             // Update position and attitude data
             dvl_msg_.position.x = data["x"];
             dvl_msg_.position.y = data["y"];
