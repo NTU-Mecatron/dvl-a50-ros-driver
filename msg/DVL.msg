@@ -15,3 +15,9 @@ bool velocity_valid
 int64 status
 #Formatting of json
 string form
+#Dead reckoning position
+geometry_msgs/Point position
+#Dead reckoning attitude: roll, pitch, yaw
+float64[] attitude
+#Standard deviation (figure of merit) for position (m)
+float64 std
