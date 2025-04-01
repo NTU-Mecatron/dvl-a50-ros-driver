@@ -2,5 +2,6 @@
     <node pkg="dvl_a50_ros_driver" type="publisher" name="publisher">
         <param name="ip" value="192.168.194.95"/>
         <param name="port" value="16171"/>
+        <param name="topic" value="dvl/data"/>
     </node>
 </launch>

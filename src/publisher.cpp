@@ -8,9 +8,10 @@ DVLA50Publisher::DVLA50Publisher() : sock_(-1) {
     tcp_ip_ = ros::param::param<std::string>("~ip", "10.42.0.186");
     tcp_port_ = ros::param::param<int>("~port", 16171);
     do_log_raw_data_ = ros::param::param<bool>("~do_log_raw_data", false);
+    dvl_topic = ros::param::param<std::string>("~topic", "dvl/data");
 
-    pub_raw_ = nh_.advertise<std_msgs::String>("dvl/json_data", 10);
-    pub_ = nh_.advertise<dvl_a50_ros_driver::DVL>("dvl/data", 10);
+    pub_raw_ = nh_.advertise<std_msgs::String>("dvl/raw_data", 10);
+    pub_ = nh_.advertise<dvl_a50_ros_driver::DVL>(dvl_topic, 10);
 
     connect();
 
