@@ -13,6 +13,7 @@ add_message_files(
   FILES
   DVL.msg
   DVLBeam.msg
+  DVLDeadReckoning.msg
 )
 
 generate_messages(
