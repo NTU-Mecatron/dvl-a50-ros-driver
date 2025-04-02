@@ -1,26 +1,39 @@
 #include <dvl_a50_ros_driver/publisher.hpp>
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <dvl_a50_ros_driver/DVL.h>
+#include <dvl_a50_ros_driver/DVLBeam.h>
+#include <dvl_a50_ros_driver/DVLDeadReckoning.h>
 
 using json = nlohmann::json;
+using DVL = dvl_a50_ros_driver::DVL;
+using DVLBeam = dvl_a50_ros_driver::DVLBeam;
+using DVLDeadReckoning = dvl_a50_ros_driver::DVLDeadReckoning;
+using String = std_msgs::String;
 
-DVLA50Publisher::DVLA50Publisher() : sock_(-1) {
-    tcp_ip_ = ros::param::param<std::string>("~ip", "10.42.0.186");
-    tcp_port_ = ros::param::param<int>("~port", 16171);
-    do_log_raw_data_ = ros::param::param<bool>("~do_log_raw_data", false);
-    dvl_topic = ros::param::param<std::string>("~topic", "dvl/data");
+DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1) {
 
-    pub_raw_ = nh_.advertise<std_msgs::String>("dvl/raw_data", 10);
-    pub_ = nh_.advertise<dvl_a50_ros_driver::DVL>(dvl_topic, 10);
+    nh_.param<string>("tcp_ip", tcp_ip_, "192.168.194.95");
+    nh_.param<int>("tcp_port", tcp_port_, 16171);
+    nh_.param<bool>("log_raw_data", do_log_raw_data_, false);
+
+    string dvl_topic, dvl_raw_topic, dead_reckoning_topic;
+    nh_.param<string>("dvl_topic", dvl_topic, "dvl/velocity");
+    nh_.param<string>("dvl_raw_topic", dvl_raw_topic, "dvl/raw_data");
+    nh_.param<string>("dead_reckoning_topic", dead_reckoning_topic, "dvl/dead_reckoning");
+
+    pub_raw_ = nh_.advertise<String>(dvl_raw_topic, 10);
+    pub_velocity_ = nh_.advertise<DVL>(dvl_topic, 10);
+    pub_dead_reckoning_ = nh_.advertise<DVLDeadReckoning>(dead_reckoning_topic, 10);
 
     connect();
 
-    std::string reset_dead_reckoning = "{\"command\": \"reset_dead_reckoning\"}";
+    string reset_dead_reckoning = "{\"command\": \"reset_dead_reckoning\"}";
     send(sock_, reset_dead_reckoning.c_str(), reset_dead_reckoning.size(), 0);
     ROS_INFO("Reset Dead Reckoning command sent");
 
     ros::Duration(0.5).sleep(); // wait before polling dr status success
-    std::string _dr_status_response = getData();
+    string _dr_status_response = getData();
     try {
         json resp = json::parse(_dr_status_response);
         if (resp["type"] == "response" && resp["response_to"] == "reset_dead_reckoning") {
@@ -29,7 +42,7 @@ DVLA50Publisher::DVLA50Publisher() : sock_(-1) {
                 ros::Duration(0.05).sleep(); // wait 50ms for values to zero out
             } else {
                 ROS_ERROR("Dead reckoning reset failed: %s", 
-                         resp["error_message"].get<std::string>().c_str());
+                         resp["error_message"].get<string>().c_str());
             }
         } else {
             ROS_WARN("Unexpected response to reset command: %s", _dr_status_response.c_str());
@@ -83,11 +96,11 @@ void DVLA50Publisher::connect() {
     setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 }
 
-std::string DVLA50Publisher::getData() {
-    std::string raw_data;
-    std::vector<char> buffer(1024);
+string DVLA50Publisher::getData() {
+    string raw_data;
+    vector<char> buffer(1024);
     
-    while (raw_data.find('\n') == std::string::npos) {
+    while (raw_data.find('\n') == string::npos) {
         ssize_t n = recv(sock_, buffer.data(), buffer.size(), 0);
         if (n < 1) {
             ROS_ERROR("Connection lost, reconnecting...");
@@ -103,7 +116,7 @@ std::string DVLA50Publisher::getData() {
     size_t pos = raw_data.find('\n');
 
     // check if we received the full json string
-    if (pos != std::string::npos) {
+    if (pos != string::npos) {
         old_json_ = raw_data.substr(pos + 1);
         raw_data = raw_data.substr(0, pos);
     }
@@ -111,14 +124,15 @@ std::string DVLA50Publisher::getData() {
     return raw_data;
 }
 
-void DVLA50Publisher::run() {
-    ros::Rate rate(10);
+void DVLA50Publisher::run() 
+{
 
-    while (ros::ok()) {
-        std::string raw_data = getData();
+    while (ros::ok()) 
+    {
+        string raw_data = getData();
         json data = json::parse(raw_data);
 
-        std_msgs::String raw_msg;
+        String raw_msg;
         raw_msg.data = raw_data;
 
         if (do_log_raw_data_) {
@@ -126,34 +140,35 @@ void DVLA50Publisher::run() {
             pub_raw_.publish(raw_msg);
             continue;
         }
+
         // Handle both velocity and position messages
-        if (data["type"] == "position_local") {
+        if (data["type"] == "position_local") 
+        {
             // Update position and attitude data
-            dvl_msg_.position.x = data["x"];
-            dvl_msg_.position.y = data["y"];
-            dvl_msg_.position.z = data["z"];
-            dvl_msg_.attitude = {
-                data["roll"],
-                data["pitch"],
-                data["yaw"]
-            };
-            dvl_msg_.std = data["std"];
+            DVLDeadReckoning dr_msg;
+            dr_msg.attitude = {data["roll"], data["pitch"], data["yaw"]};
+            dr_msg.position = {data["x"], data["y"], data["z"]};
+            dr_msg.std = data["std"];
+            dr_msg.ts = data["ts"];
+            pub_dead_reckoning_.publish(dr_msg);
         }
-        else if (data["type"] == "velocity") {
-            dvl_msg_.header.stamp = ros::Time::now();
-            dvl_msg_.header.frame_id = "dvl_link";
-            dvl_msg_.time = data["time"];
-            dvl_msg_.velocity.x = data["vx"];
-            dvl_msg_.velocity.y = data["vy"];
-            dvl_msg_.velocity.z = data["vz"];
-            dvl_msg_.fom = data["fom"];
-            dvl_msg_.altitude = data["altitude"];
-            dvl_msg_.velocity_valid = data["velocity_valid"];
-            dvl_msg_.status = data["status"];
-            dvl_msg_.form = data["format"];
+        else if (data["type"] == "velocity") 
+        {
+            DVL dvl_msg;
+            dvl_msg.header.stamp = ros::Time::now();
+            dvl_msg.header.frame_id = "dvl_link";
+            dvl_msg.time = data["time"];
+            dvl_msg.velocity.x = data["vx"];
+            dvl_msg.velocity.y = data["vy"];
+            dvl_msg.velocity.z = data["vz"];
+            dvl_msg.fom = data["fom"];
+            dvl_msg.altitude = data["altitude"];
+            dvl_msg.velocity_valid = data["velocity_valid"];
+            dvl_msg.status = data["status"];
+            dvl_msg.form = data["format"];
 
             for (int i = 0; i < 4; ++i) {
-                auto& beam = (i == 0) ? beam0_ : (i == 1) ? beam1_ : (i == 2) ? beam2_ : beam3_;
+                DVLBeam beam;
                 const auto& trans = data["transducers"][i];
                 
                 beam.id = trans["id"];
@@ -162,23 +177,21 @@ void DVLA50Publisher::run() {
                 beam.rssi = trans["rssi"];
                 beam.nsd = trans["nsd"];
                 beam.valid = trans["beam_valid"];
+                dvl_msg.beams.push_back(beam);
             }
-
-            dvl_msg_.beams = {beam0_, beam1_, beam2_, beam3_};
+            pub_velocity_.publish(dvl_msg);
         }
         else {
             continue;
         }
-
-        pub_.publish(dvl_msg_);
-
-        rate.sleep();
     }
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv) 
+{
     ros::init(argc, argv, "a50_pub");
-    DVLA50Publisher publisher;
+    ros::NodeHandle nh("~");
+    DVLA50Publisher publisher(nh);
     
     try {
         publisher.run();
