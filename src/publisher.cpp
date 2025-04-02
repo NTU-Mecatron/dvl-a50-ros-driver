@@ -126,16 +126,15 @@ string DVLA50Publisher::getData() {
 
 void DVLA50Publisher::run() 
 {
-
+    ros::Rate loop_rate(30); // Hz
     while (ros::ok()) 
     {
         string raw_data = getData();
         json data = json::parse(raw_data);
 
-        String raw_msg;
-        raw_msg.data = raw_data;
-
         if (do_log_raw_data_) {
+            String raw_msg;
+            raw_msg.data = raw_data;
             ROS_INFO("%s", raw_data.c_str());
             pub_raw_.publish(raw_msg);
             continue;
@@ -184,6 +183,8 @@ void DVLA50Publisher::run()
         else {
             continue;
         }
+
+        loop_rate.sleep();
     }
 }
 
