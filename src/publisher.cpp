@@ -11,8 +11,9 @@ using DVLBeam = dvl_a50_ros_driver::DVLBeam;
 using DVLDeadReckoning = dvl_a50_ros_driver::DVLDeadReckoning;
 using String = std_msgs::String;
 
-DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1) {
-
+DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1) 
+{
+    // Initialize the socket
     nh_.param<string>("tcp_ip", tcp_ip_, "192.168.194.95");
     nh_.param<int>("tcp_port", tcp_port_, 16171);
     nh_.param<bool>("log_raw_data", do_log_raw_data_, false);
@@ -60,13 +61,15 @@ DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1) {
 }
 
 
-DVLA50Publisher::~DVLA50Publisher() {
+DVLA50Publisher::~DVLA50Publisher() 
+{
     if (sock_ >= 0) {
         close(sock_);
     }
 }
 
-void DVLA50Publisher::connect() {
+void DVLA50Publisher::connect() 
+{
     if (sock_ >= 0) {
         close(sock_);
     }
@@ -84,14 +87,14 @@ void DVLA50Publisher::connect() {
     serv_addr.sin_port = htons(tcp_port_);
 
     if (inet_pton(AF_INET, tcp_ip_.c_str(), &serv_addr.sin_addr) <= 0) {
-        ROS_ERROR("Invalid address");
+        ROS_WARN("Invalid address");
         ros::Duration(1.0).sleep();
         connect();
         return;
     }
 
     if (::connect(sock_, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-        ROS_ERROR("Connection failed");
+        ROS_WARN("Connection failed");
         ros::Duration(1.0).sleep();
         connect();
         return;
@@ -103,7 +106,8 @@ void DVLA50Publisher::connect() {
     setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 }
 
-string DVLA50Publisher::getData() {
+string DVLA50Publisher::getData() 
+{
     string raw_data;
     vector<char> buffer(1024);
     
