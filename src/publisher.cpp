@@ -26,6 +26,8 @@ DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1) {
     pub_velocity_ = nh_.advertise<DVL>(dvl_topic, 10);
     pub_dead_reckoning_ = nh_.advertise<DVLDeadReckoning>(dead_reckoning_topic, 10);
 
+    // Set up the socket connection
+    ROS_INFO("Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
     connect();
 
     string reset_dead_reckoning = "{\"command\": \"reset_dead_reckoning\"}";
@@ -50,6 +52,11 @@ DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1) {
     } catch (const std::exception& e) {
         ROS_ERROR("Failed to parse reset response: %s", e.what());
     }
+
+    if (do_log_raw_data_)
+        ROS_INFO("Logging raw data to topic: %s", dvl_raw_topic.c_str());
+    else
+        ROS_INFO("Publishing DVL data to two topics: %s and %s", dvl_topic.c_str(), dead_reckoning_topic.c_str());
 }
 
 
@@ -103,7 +110,7 @@ string DVLA50Publisher::getData() {
     while (raw_data.find('\n') == string::npos) {
         ssize_t n = recv(sock_, buffer.data(), buffer.size(), 0);
         if (n < 1) {
-            ROS_ERROR("Connection lost, reconnecting...");
+            ROS_WARN("Connection lost, reconnecting...");
             connect();
             continue;
         }
