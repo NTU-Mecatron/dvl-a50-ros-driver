@@ -18,7 +18,6 @@ DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1)
     nh_.param<int>("tcp_port", tcp_port_, 16171);
     nh_.param<bool>("log_raw_data", do_log_raw_data_, false);
 
-    string dvl_topic, dvl_raw_topic, dead_reckoning_topic;
     nh_.param<string>("dvl_topic", dvl_topic, "dvl/velocity");
     nh_.param<string>("dvl_raw_topic", dvl_raw_topic, "dvl/raw_data");
     nh_.param<string>("dead_reckoning_topic", dead_reckoning_topic, "dvl/dead_reckoning");
@@ -27,37 +26,20 @@ DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1)
     pub_velocity_ = nh_.advertise<DVL>(dvl_topic, 10);
     pub_dead_reckoning_ = nh_.advertise<DVLDeadReckoning>(dead_reckoning_topic, 10);
 
+    nh_.param<string>("reset_dead_reckoning", reset_dead_reckoning_service, "dvl/reset_dead_reckoning");
+    nh_.param<string>("calibrate_gyro", calibrate_gyro_service, "dvl/calibrate_gyro");
+    nh_.param<string>("get_config", get_config_service, "dvl/get_config");
+    reset_dead_reckoning_server_ = nh_.advertiseService(reset_dead_reckoning_service, &DVLA50Publisher::reset_dead_reckoning, this);
+    calibrate_gyro_server_ = nh_.advertiseService(calibrate_gyro_service, &DVLA50Publisher::calibrate_gyro, this);
+    get_config_server_ = nh_.advertiseService(get_config_service, &DVLA50Publisher::get_config, this);
+
     // Set up the socket connection
     ROS_INFO("Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
     connect();
 
-    string reset_dead_reckoning = "{\"command\": \"reset_dead_reckoning\"}";
-    send(sock_, reset_dead_reckoning.c_str(), reset_dead_reckoning.size(), 0);
-    ROS_INFO("Reset Dead Reckoning command sent");
-
-    ros::Duration(0.5).sleep(); // wait before polling dr status success
-    string _dr_status_response = getData();
-    try {
-        json resp = json::parse(_dr_status_response);
-        if (resp["type"] == "response" && resp["response_to"] == "reset_dead_reckoning") {
-            if (resp["success"]) {
-                ROS_INFO("Dead reckoning reset successful");
-                ros::Duration(0.05).sleep(); // wait 50ms for values to zero out
-            } else {
-                ROS_ERROR("Dead reckoning reset failed: %s", 
-                         resp["error_message"].get<string>().c_str());
-            }
-        } else {
-            ROS_WARN("Unexpected response to reset command: %s", _dr_status_response.c_str());
-        }
-    } catch (const std::exception& e) {
-        ROS_ERROR("Failed to parse reset response: %s", e.what());
-    }
-
-    if (do_log_raw_data_)
-        ROS_INFO("Logging raw data to topic: %s", dvl_raw_topic.c_str());
-    else
-        ROS_INFO("Publishing DVL data to two topics: %s and %s", dvl_topic.c_str(), dead_reckoning_topic.c_str());
+    std_srvs::Trigger::Request starting_req;
+    std_srvs::Trigger::Response starting_res;
+    reset_dead_reckoning(starting_req, starting_res);
 }
 
 
@@ -133,6 +115,61 @@ string DVLA50Publisher::getData()
     }
 
     return raw_data;
+}
+
+bool DVLA50Publisher::send_dvl_command(string cmd) {
+    string full_cmd {"{\"command\":\"" + cmd + "\"}"}; 
+    send(sock_, full_cmd.c_str(), full_cmd.size(), 0);
+    ROS_INFO("%s sent", cmd.c_str());
+
+    ros::Duration(0.5).sleep(); // wait before polling dr status success
+    string _dr_status_response = getData();
+    try {
+        json resp = json::parse(_dr_status_response);
+        if (resp["type"] == "response" && resp["response_to"] == cmd) {
+            if (resp["success"]) {
+                ROS_INFO("%s successful", cmd.c_str());
+                ros::Duration(0.05).sleep(); // wait 50ms for values to zero out
+                return true;
+            } else {
+                ROS_ERROR("Dead reckoning reset failed: %s", 
+                         resp["error_message"].get<string>().c_str());
+                return false;
+            }
+        } else {
+            ROS_WARN("Unexpected response to command: %s", _dr_status_response.c_str());
+            return false;
+        }
+    } catch (const std::exception& e) {
+        ROS_ERROR("Failed to parse reset response: %s", e.what());
+        return false;
+    }
+
+    if (do_log_raw_data_)
+        ROS_INFO("Logging raw data to topic: %s", dvl_raw_topic.c_str());
+    else
+        ROS_INFO("Publishing DVL data to two topics: %s and %s", dvl_topic.c_str(), dead_reckoning_topic.c_str());
+}
+
+bool DVLA50Publisher::reset_dead_reckoning(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+    bool success = send_dvl_command("reset_dead_reckoning");
+    res.success = success;
+    res.message = success ? "Dead reckoning reset successful" : "Dead reckoning reset failed";
+    return true;
+}
+
+bool DVLA50Publisher::calibrate_gyro(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+    bool success = send_dvl_command("calibrate_gyro");
+    res.success = success;
+    res.message = success ? "Calibrate gyro successful" : "Calibrate gyro failed";
+    return true;
+}
+
+bool DVLA50Publisher::get_config(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+    bool success = send_dvl_command("get_config");
+    res.success = success;
+    res.message = success ? "Get config successful" : "Get config failed";
+    return true;
 }
 
 void DVLA50Publisher::run() 

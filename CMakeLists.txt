@@ -5,9 +5,13 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  std_srvs
   geometry_msgs
   message_generation
 )
+
+find_package(nlohmann_json REQUIRED)
+
 
 add_message_files(
   FILES
@@ -48,4 +52,10 @@ add_executable(subscriber
 add_dependencies(subscriber ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(subscriber
   ${catkin_LIBRARIES}
+)
+
+add_dependencies(publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(publisher
+  ${catkin_LIBRARIES}
+  nlohmann_json::nlohmann_json
 )
