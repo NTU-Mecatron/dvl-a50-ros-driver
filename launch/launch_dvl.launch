@@ -7,5 +7,7 @@
         <param name="reset_dead_reckoning" value="/dvl/reset_dead_reckoning"/>
         <param name="calibrate_gyro" value="/dvl/calibrate_gyro"/>
         <param name="get_config" value="/dvl/get_config"/>
+        <param name="disable" value="/dvl/disable"/>
+        <param name="enable" value="/dvl/enable"/>
     </node>
 </launch>

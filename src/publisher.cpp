@@ -29,9 +29,13 @@ DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1)
     nh_.param<string>("reset_dead_reckoning", reset_dead_reckoning_service, "dvl/reset_dead_reckoning");
     nh_.param<string>("calibrate_gyro", calibrate_gyro_service, "dvl/calibrate_gyro");
     nh_.param<string>("get_config", get_config_service, "dvl/get_config");
+    nh_.param<string>("disable", disable_service, "dvl/disable");
+    nh_.param<string>("enable", enable_service, "dvl/enable");
     reset_dead_reckoning_server_ = nh_.advertiseService(reset_dead_reckoning_service, &DVLA50Publisher::reset_dead_reckoning, this);
     calibrate_gyro_server_ = nh_.advertiseService(calibrate_gyro_service, &DVLA50Publisher::calibrate_gyro, this);
     get_config_server_ = nh_.advertiseService(get_config_service, &DVLA50Publisher::get_config, this);
+    disable_server_  = nh_.advertiseService(disable_service, &DVLA50Publisher::disable, this);
+    enable_server_ = nh_.advertiseService(enable_service, &DVLA50Publisher::enable, this);
 
     // Set up the socket connection
     ROS_INFO("Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
@@ -118,17 +122,24 @@ string DVLA50Publisher::getData()
 }
 
 bool DVLA50Publisher::send_dvl_command(string cmd) {
-    string full_cmd {"{\"command\": \"" + cmd + "\"}"}; 
+    string full_cmd {"{\"command\": " + cmd + "}"}; 
+    ROS_WARN("sending %s", full_cmd.c_str());
     send(sock_, full_cmd.c_str(), full_cmd.size(), 0);
-    ROS_INFO("%s sent", cmd.c_str());
+    ROS_WARN("%s sent", cmd.c_str());
 
-    ros::Duration(0.5).sleep(); // wait before polling dr status success
     string _dr_status_response = getData();
     try {
         json resp = json::parse(_dr_status_response);
-        if (resp["type"] == "response" && resp["response_to"] == cmd) {
+	string response_to = resp["response_to"];
+        if (resp["type"] == "response" && (cmd.find(response_to) != string::npos)) {
             if (resp["success"]) {
-                ROS_INFO("%s successful", cmd.c_str());
+                ROS_WARN("%s successful", cmd.c_str());
+		try {
+		    string result {resp["result"].get<string>().c_str()};
+                    ROS_WARN("%s", result.c_str());
+		} catch (const std::exception& e) {
+		    ROS_WARN("No result, likely expected null type return");
+		}
                 ros::Duration(0.05).sleep(); // wait 50ms for values to zero out
                 return true;
             } else {
@@ -152,21 +163,35 @@ bool DVLA50Publisher::send_dvl_command(string cmd) {
 }
 
 bool DVLA50Publisher::reset_dead_reckoning(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
-    bool success = send_dvl_command("reset_dead_reckoning");
+    bool success = send_dvl_command("\"reset_dead_reckoning\"");
     res.success = success;
     res.message = success ? "Dead reckoning reset successful" : "Dead reckoning reset failed";
     return true;
 }
 
 bool DVLA50Publisher::calibrate_gyro(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
-    bool success = send_dvl_command("calibrate_gyro");
+    bool success = send_dvl_command("\"calibrate_gyro\"");
     res.success = success;
     res.message = success ? "Calibrate gyro successful" : "Calibrate gyro failed";
     return true;
 }
 
+bool DVLA50Publisher::disable(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+    bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
+    res.success = success;
+    res.message = success ? "Disable successful" : "Disable failed";
+    return true;
+}
+
+bool DVLA50Publisher::enable(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+    bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":true}");
+    res.success = success;
+    res.message = success ? "Enable successful" : "Enable failed";
+    return true;
+}
+
 bool DVLA50Publisher::get_config(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
-    bool success = send_dvl_command("get_config");
+    bool success = send_dvl_command("\"get_config\"");
     res.success = success;
     res.message = success ? "Get config successful" : "Get config failed";
     return true;
@@ -231,6 +256,7 @@ void DVLA50Publisher::run()
         else {
             continue;
         }
+	ros::spinOnce();
 
         loop_rate.sleep();
     }
