@@ -118,7 +118,7 @@ string DVLA50Publisher::getData()
 }
 
 bool DVLA50Publisher::send_dvl_command(string cmd) {
-    string full_cmd {"{\"command\":\"" + cmd + "\"}"}; 
+    string full_cmd {"{\"command\": \"" + cmd + "\"}"}; 
     send(sock_, full_cmd.c_str(), full_cmd.size(), 0);
     ROS_INFO("%s sent", cmd.c_str());
 
