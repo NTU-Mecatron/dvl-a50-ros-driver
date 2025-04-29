@@ -4,5 +4,10 @@
         <param name="port" value="16171"/>
         <param name="dvl_topic" value="/dvl/velocity"/>
         <param name="dead_reckoning_topic" value="/dvl/dead_reckoning"/>
+        <param name="reset_dead_reckoning" value="/dvl/reset_dead_reckoning"/>
+        <param name="calibrate_gyro" value="/dvl/calibrate_gyro"/>
+        <param name="get_config" value="/dvl/get_config"/>
+        <param name="disable" value="/dvl/disable"/>
+        <param name="enable" value="/dvl/enable"/>
     </node>
 </launch>
