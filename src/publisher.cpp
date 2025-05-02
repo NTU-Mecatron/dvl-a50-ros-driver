@@ -1,6 +1,7 @@
 #include <dvl_a50_ros_driver/publisher.hpp>
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <iomanip>
 #include <dvl_a50_ros_driver/DVL.h>
 #include <dvl_a50_ros_driver/DVLBeam.h>
 #include <dvl_a50_ros_driver/DVLDeadReckoning.h>
@@ -29,13 +30,13 @@ DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1)
     nh_.param<string>("reset_dead_reckoning", reset_dead_reckoning_service, "dvl/reset_dead_reckoning");
     nh_.param<string>("calibrate_gyro", calibrate_gyro_service, "dvl/calibrate_gyro");
     nh_.param<string>("get_config", get_config_service, "dvl/get_config");
-    nh_.param<string>("disable", disable_service, "dvl/disable");
-    nh_.param<string>("enable", enable_service, "dvl/enable");
+    nh_.param<string>("turn_off", turn_off_service, "dvl/turn_off");
+    nh_.param<string>("turn_on", turn_on_service, "dvl/turn_on");
     reset_dead_reckoning_server_ = nh_.advertiseService(reset_dead_reckoning_service, &DVLA50Publisher::reset_dead_reckoning, this);
     calibrate_gyro_server_ = nh_.advertiseService(calibrate_gyro_service, &DVLA50Publisher::calibrate_gyro, this);
     get_config_server_ = nh_.advertiseService(get_config_service, &DVLA50Publisher::get_config, this);
-    disable_server_  = nh_.advertiseService(disable_service, &DVLA50Publisher::disable, this);
-    enable_server_ = nh_.advertiseService(enable_service, &DVLA50Publisher::enable, this);
+    turn_off_server_  = nh_.advertiseService(turn_off_service, &DVLA50Publisher::turn_off, this);
+    turn_on_server_ = nh_.advertiseService(turn_on_service, &DVLA50Publisher::turn_on, this);
 
     // Set up the socket connection
     ROS_INFO("Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
@@ -127,39 +128,58 @@ bool DVLA50Publisher::send_dvl_command(string cmd) {
     send(sock_, full_cmd.c_str(), full_cmd.size(), 0);
     ROS_WARN("%s sent", cmd.c_str());
 
-    string _dr_status_response = getData();
-    try {
-        json resp = json::parse(_dr_status_response);
-	string response_to = resp["response_to"];
-        if (resp["type"] == "response" && (cmd.find(response_to) != string::npos)) {
-            if (resp["success"]) {
-                ROS_WARN("%s successful", cmd.c_str());
-		try {
-		    string result {resp["result"].get<string>().c_str()};
-                    ROS_WARN("%s", result.c_str());
-		} catch (const std::exception& e) {
-		    ROS_WARN("No result, likely expected null type return");
-		}
-                ros::Duration(0.05).sleep(); // wait 50ms for values to zero out
-                return true;
+    const int max_retries = 5;
+    int retry_count = 0;
+
+    while (retry_count < max_retries) {
+        string _dr_status_response = getData();
+        try {
+            json resp = json::parse(_dr_status_response);
+            string response_to = resp["response_to"];
+            if (resp["type"] == "response" && (cmd.find(response_to) != string::npos)) {
+                if (resp["success"]) {
+                    ROS_WARN("%s successful", cmd.c_str());
+                    auto result {resp["result"]};
+                    if (result == NULL) {
+                        ROS_WARN("No result, likely expected null type return");
+                    } else {
+                        try {
+                            ROS_WARN("Result:\n%s", result.dump(2).c_str());
+                        } catch (const std::exception& e) {
+                            ROS_WARN("Error in returning result: %s", e.what());
+                        }
+                    }
+                    ros::Duration(0.05).sleep(); // wait 50ms for values to zero out
+                    return true;
+                } else {
+                    ROS_ERROR("Dead reckoning reset failed: %s", 
+                            resp["error_message"].get<string>().c_str());
+                    return false;
+                }
             } else {
-                ROS_ERROR("Dead reckoning reset failed: %s", 
-                         resp["error_message"].get<string>().c_str());
+                ROS_WARN("Unexpected response to command: %s", _dr_status_response.c_str());
                 return false;
             }
-        } else {
-            ROS_WARN("Unexpected response to command: %s", _dr_status_response.c_str());
-            return false;
+        } catch (const std::exception& e) {
+            retry_count++;
+            if (retry_count >= max_retries) {
+                ROS_ERROR("Failed to parse response after %d attempts: %s", retry_count, e.what());
+                return false;
+            }
+            ROS_ERROR("Failed to parse reset response (%d/%d): %s", retry_count, max_retries, e.what());
+            ros::Duration(0.1).sleep();
+            continue;
         }
-    } catch (const std::exception& e) {
-        ROS_ERROR("Failed to parse reset response: %s", e.what());
-        return false;
     }
 
-    if (do_log_raw_data_)
+    if (do_log_raw_data_) {
         ROS_INFO("Logging raw data to topic: %s", dvl_raw_topic.c_str());
-    else
+        return true;
+    }
+    else {
         ROS_INFO("Publishing DVL data to two topics: %s and %s", dvl_topic.c_str(), dead_reckoning_topic.c_str());
+        return true;
+    }
 }
 
 bool DVLA50Publisher::reset_dead_reckoning(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
@@ -176,17 +196,17 @@ bool DVLA50Publisher::calibrate_gyro(std_srvs::Trigger::Request& req, std_srvs::
     return true;
 }
 
-bool DVLA50Publisher::disable(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+bool DVLA50Publisher::turn_off(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
     bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
     res.success = success;
-    res.message = success ? "Disable successful" : "Disable failed";
+    res.message = success ? "turn_off successful" : "turn_off failed";
     return true;
 }
 
-bool DVLA50Publisher::enable(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+bool DVLA50Publisher::turn_on(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
     bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":true}");
     res.success = success;
-    res.message = success ? "Enable successful" : "Enable failed";
+    res.message = success ? "turn_on successful" : "turn_on failed";
     return true;
 }
 
