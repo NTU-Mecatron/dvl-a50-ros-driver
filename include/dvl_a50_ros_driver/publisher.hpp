@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Trigger.h>
+#include <std_srvs/SetBool.h>
 
 using namespace std;
 
@@ -25,6 +26,7 @@ private:
     bool get_config(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
     bool turn_off(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
     bool turn_on(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
+    bool toggle(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
 
     ros::NodeHandle nh_;
     ros::Publisher pub_raw_;
@@ -35,8 +37,9 @@ private:
     ros::ServiceServer get_config_server_;
     ros::ServiceServer turn_off_server_;
     ros::ServiceServer turn_on_server_;
+    ros::ServiceServer toggle_server;
 
-    string reset_dead_reckoning_service, calibrate_gyro_service, get_config_service, turn_off_service, turn_on_service;
+    string reset_dead_reckoning_service, calibrate_gyro_service, get_config_service, turn_off_service, turn_on_service, toggle_service;
     
     int sock_;
     string tcp_ip_;

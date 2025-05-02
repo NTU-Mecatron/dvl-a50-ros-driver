@@ -9,5 +9,6 @@
         <param name="get_config" value="/dvl/get_config"/>
         <param name="turn_off" value="/dvl/turn_off"/>
         <param name="turn_on" value="/dvl/turn_on"/>
+        <param name="toggle" value="/dvl/toggle"/>
     </node>
 </launch>
