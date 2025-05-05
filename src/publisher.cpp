@@ -191,7 +191,7 @@ bool DVLA50Publisher::reset_dead_reckoning(std_srvs::Trigger::Request& req, std_
 }
 
 bool DVLA50Publisher::calibrate_gyro(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
-    ROS_WARN("Temporary disconnection when calibrating gyro, expect NULL return")
+    ROS_WARN("Temporary disconnection when calibrating gyro, expect NULL return");
     bool success = send_dvl_command("\"calibrate_gyro\"");
     res.success = success;
     res.message = success ? "Calibrate gyro successful" : "Calibrate gyro failed";
