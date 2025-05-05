@@ -32,13 +32,13 @@ DVLA50Publisher::DVLA50Publisher(ros::NodeHandle& nh) : nh_(nh), sock_(-1)
     nh_.param<string>("get_config", get_config_service, "dvl/get_config");
     nh_.param<string>("turn_off", turn_off_service, "dvl/turn_off");
     nh_.param<string>("turn_on", turn_on_service, "dvl/turn_on");
-    nh_.param<string>("toggle", turn_on_service, "dvl/toggle");
+    nh_.param<string>("toggle", toggle_service, "dvl/toggle");
     reset_dead_reckoning_server_ = nh_.advertiseService(reset_dead_reckoning_service, &DVLA50Publisher::reset_dead_reckoning, this);
     calibrate_gyro_server_ = nh_.advertiseService(calibrate_gyro_service, &DVLA50Publisher::calibrate_gyro, this);
     get_config_server_ = nh_.advertiseService(get_config_service, &DVLA50Publisher::get_config, this);
     turn_off_server_  = nh_.advertiseService(turn_off_service, &DVLA50Publisher::turn_off, this);
     turn_on_server_ = nh_.advertiseService(turn_on_service, &DVLA50Publisher::turn_on, this);
-    toggle_server = nh_.advertiseService(toggle_service, &DVLA50Publisher::toggle, this);
+    toggle_server_ = nh_.advertiseService(toggle_service, &DVLA50Publisher::toggle, this);
 
     // Set up the socket connection
     ROS_INFO("Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);

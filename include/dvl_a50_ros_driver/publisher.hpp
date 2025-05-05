@@ -37,7 +37,7 @@ private:
     ros::ServiceServer get_config_server_;
     ros::ServiceServer turn_off_server_;
     ros::ServiceServer turn_on_server_;
-    ros::ServiceServer toggle_server;
+    ros::ServiceServer toggle_server_;
 
     string reset_dead_reckoning_service, calibrate_gyro_service, get_config_service, turn_off_service, turn_on_service, toggle_service;
     
