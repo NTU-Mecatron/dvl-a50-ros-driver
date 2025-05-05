@@ -128,7 +128,6 @@ bool DVLA50Publisher::send_dvl_command(string cmd) {
     string full_cmd {"{\"command\": " + cmd + "}"}; 
     ROS_WARN("sending %s", full_cmd.c_str());
     send(sock_, full_cmd.c_str(), full_cmd.size(), 0);
-    ROS_WARN("%s sent", cmd.c_str());
 
     const int max_retries = 5;
     int retry_count = 0;
@@ -146,7 +145,7 @@ bool DVLA50Publisher::send_dvl_command(string cmd) {
                         ROS_WARN("No result, likely expected null type return");
                     } else {
                         try {
-                            ROS_WARN("Result:\n%s", result.dump(2).c_str());
+                            ROS_WARN("DVL Result:\n%s", result.dump(2).c_str());
                         } catch (const std::exception& e) {
                             ROS_WARN("Error in returning result: %s", e.what());
                         }
@@ -192,6 +191,7 @@ bool DVLA50Publisher::reset_dead_reckoning(std_srvs::Trigger::Request& req, std_
 }
 
 bool DVLA50Publisher::calibrate_gyro(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+    ROS_WARN("Temporary disconnection when calibrating gyro, expect NULL return")
     bool success = send_dvl_command("\"calibrate_gyro\"");
     res.success = success;
     res.message = success ? "Calibrate gyro successful" : "Calibrate gyro failed";
