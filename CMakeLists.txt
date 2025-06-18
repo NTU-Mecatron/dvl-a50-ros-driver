@@ -54,8 +54,12 @@ target_link_libraries(subscriber
   ${catkin_LIBRARIES}
 )
 
-add_dependencies(publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(publisher
+# Build position tracker node
+add_executable(position_tracker 
+  src/position_tracker.cpp
+)
+add_dependencies(position_tracker ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(position_tracker
   ${catkin_LIBRARIES}
   nlohmann_json::nlohmann_json
 )

@@ -1,5 +1,5 @@
 #include <dvl_a50_ros_driver/publisher.hpp>
-#include <nlohmann/json.hpp>
+#include <dvl_a50_ros_driver/json.hpp>
 #include <iostream>
 #include <iomanip>
 #include <dvl_a50_ros_driver/DVL.h>
