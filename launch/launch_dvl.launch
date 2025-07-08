@@ -1,7 +1,7 @@
 <launch>
-    <node pkg="dvl_a50_ros_driver" type="publisher" name="publisher">
-        <param name="ip" value="192.168.194.95"/>
-        <param name="port" value="16171"/>
+    <node pkg="dvl_a50_ros_driver" type="publisher" name="dvl">
+        <param name="tcp_ip" value="192.168.2.95"/>
+        <param name="tcp_port" value="16171"/>
         <param name="dvl_topic" value="/dvl/velocity"/>
         <param name="dead_reckoning_topic" value="/dvl/dead_reckoning"/>
         <param name="reset_dead_reckoning" value="/dvl/reset_dead_reckoning"/>
