@@ -35,6 +35,7 @@ target_include_directories(publisher PUBLIC
 ament_target_dependencies(publisher
   rclcpp
   std_msgs
+  std_srvs
   geometry_msgs
 )
 
