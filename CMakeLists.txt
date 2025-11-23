@@ -7,7 +7,6 @@ endif()
 
 # 1. Find Dependencies
 find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -43,9 +42,9 @@ ament_target_dependencies(publisher
 target_link_libraries(publisher nlohmann_json::nlohmann_json)
 
 # Link the messages generated in THIS package
-# We use the explicit target name matching the project name + rosidl suffix
-rosidl_target_interfaces(publisher
+rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
+target_link_libraries(publisher "${cpp_typesupport_target}")
 
 # --- Subscriber ---
 add_executable(subscriber src/subscriber.cpp)
@@ -59,30 +58,30 @@ ament_target_dependencies(subscriber
   geometry_msgs
 )
 
-rosidl_target_interfaces(subscriber
+rosidl_get_typesupport_target(cpp_typesupport_target_sub
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
+target_link_libraries(subscriber "${cpp_typesupport_target_sub}")
 
 # 4. Install C++ Targets
 install(TARGETS publisher subscriber
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# 5. Install Python Modules
-ament_python_install_package(${PROJECT_NAME})
-
-# 6. Install Python Executable Scripts
+# 5. Install Python Executable Scripts
 install(PROGRAMS
   scripts/publisher.py
+  scripts/subscriber.py
+  scripts/subscriber_gui.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# 7. Install launch files
+# 6. Install launch files
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/
 )
 
-# 8. Export
+# 7. Export
 ament_export_include_directories(include)
 ament_export_dependencies(rosidl_default_runtime)
 

@@ -1,4 +1,4 @@
-Header header
+std_msgs/Header header
 #Time
 float32 time
 #Measured velocity [m/s]
