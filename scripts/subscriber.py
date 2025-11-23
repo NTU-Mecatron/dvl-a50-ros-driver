@@ -1,21 +1,46 @@
-#!/usr/bin/env python
-import rospy
+#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
 from std_msgs.msg import String
-from waterlinked_a50_ros_driver.msg import DVL
-from waterlinked_a50_ros_driver.msg import DVLBeam
+from dvl_a50_ros_driver.msg import DVL
+from dvl_a50_ros_driver.msg import DVLBeam
 
-def callbackRAW(data):
-	rospy.loginfo(rospy.get_caller_id() + "Data received: %s", data.data)
-	
-def callback(data):
-	rospy.loginfo(rospy.get_caller_id() + "Time received: %s",data.time)
-	
-def subscriber():
-	rospy.init_node('a50_sub', anonymous=False)
-	rospy.Subscriber("dvl/json_data", String, callbackRAW)
-	rospy.Subscriber("dvl/data", DVL, callback)
-	
-	rospy.spin() #keeps python from exiting until node is stopped
-	
+
+class DVLA50Subscriber(Node):
+    def __init__(self):
+        super().__init__('dvl_a50_subscriber')
+        
+        # Create subscriptions
+        self.raw_subscription = self.create_subscription(
+            String,
+            'dvl/json_data',
+            self.callbackRAW,
+            10)
+        self.dvl_subscription = self.create_subscription(
+            DVL,
+            'dvl/data',
+            self.callback,
+            10)
+    
+    def callbackRAW(self, data):
+        self.get_logger().info(f'Data received: {data.data}')
+    
+    def callback(self, data):
+        self.get_logger().info(f'Time received: {data.time}')
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    subscriber = DVLA50Subscriber()
+    
+    try:
+        rclpy.spin(subscriber)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        subscriber.destroy_node()
+        rclpy.shutdown()
+
+
 if __name__ == '__main__':
-	subscriber()
+    main()
