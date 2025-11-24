@@ -9,7 +9,7 @@ using DVLBeam = dvl_a50_ros_driver::msg::DVLBeam;
 using DVLDeadReckoning = dvl_a50_ros_driver::msg::DVLDeadReckoning;
 using String = std_msgs::msg::String;
 
-DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1) 
+DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
 {
     // Declare and get parameters
     this->declare_parameter<string>("tcp_ip", "192.168.194.95");
@@ -74,26 +74,28 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
 
     // Create timer for periodic data collection (30 Hz)
     timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(33),  // ~30 Hz
+        std::chrono::milliseconds(33), // ~30 Hz
         std::bind(&DVLA50Publisher::timer_callback, this));
 }
 
-
-DVLA50Publisher::~DVLA50Publisher() 
+DVLA50Publisher::~DVLA50Publisher()
 {
-    if (sock_ >= 0) {
+    if (sock_ >= 0)
+    {
         close(sock_);
     }
 }
 
-void DVLA50Publisher::connect() 
+void DVLA50Publisher::connect()
 {
-    if (sock_ >= 0) {
+    if (sock_ >= 0)
+    {
         close(sock_);
     }
 
     sock_ = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock_ < 0) {
+    if (sock_ < 0)
+    {
         RCLCPP_ERROR(this->get_logger(), "Socket creation error");
         rclcpp::sleep_for(std::chrono::seconds(1));
         connect();
@@ -104,14 +106,16 @@ void DVLA50Publisher::connect()
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(tcp_port_);
 
-    if (inet_pton(AF_INET, tcp_ip_.c_str(), &serv_addr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, tcp_ip_.c_str(), &serv_addr.sin_addr) <= 0)
+    {
         RCLCPP_WARN(this->get_logger(), "Invalid address");
         rclcpp::sleep_for(std::chrono::seconds(1));
         connect();
         return;
     }
 
-    if (::connect(sock_, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (::connect(sock_, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    {
         RCLCPP_WARN(this->get_logger(), "Connection failed");
         rclcpp::sleep_for(std::chrono::seconds(1));
         connect();
@@ -121,17 +125,19 @@ void DVLA50Publisher::connect()
     struct timeval tv;
     tv.tv_sec = 1;
     tv.tv_usec = 0;
-    setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+    setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
 }
 
-string DVLA50Publisher::getData() 
+string DVLA50Publisher::getData()
 {
     string raw_data;
     vector<char> buffer(1024);
-    
-    while (raw_data.find('\n') == string::npos) {
+
+    while (raw_data.find('\n') == string::npos)
+    {
         ssize_t n = recv(sock_, buffer.data(), buffer.size(), 0);
-        if (n < 1) {
+        if (n < 1)
+        {
             RCLCPP_WARN(this->get_logger(), "Connection lost, reconnecting...");
             connect();
             continue;
@@ -145,7 +151,8 @@ string DVLA50Publisher::getData()
     size_t pos = raw_data.find('\n');
 
     // check if we received the full json string
-    if (pos != string::npos) {
+    if (pos != string::npos)
+    {
         old_json_ = raw_data.substr(pos + 1);
         raw_data = raw_data.substr(0, pos);
     }
@@ -153,46 +160,64 @@ string DVLA50Publisher::getData()
     return raw_data;
 }
 
-bool DVLA50Publisher::send_dvl_command(string cmd) {
-    string full_cmd {"{\"command\": " + cmd + "}"}; 
+bool DVLA50Publisher::send_dvl_command(string cmd)
+{
+    string full_cmd{"{\"command\": " + cmd + "}"};
     RCLCPP_WARN(this->get_logger(), "sending %s", full_cmd.c_str());
     send(sock_, full_cmd.c_str(), full_cmd.size(), 0);
 
     const int max_retries = 5;
     int retry_count = 0;
 
-    while (retry_count < max_retries) {
+    while (retry_count < max_retries)
+    {
         string _dr_status_response = getData();
-        try {
+        try
+        {
             json resp = json::parse(_dr_status_response);
             string response_to = resp["response_to"];
-            if (resp["type"] == "response" && (cmd.find(response_to) != string::npos)) {
-                if (resp["success"]) {
+            if (resp["type"] == "response" && (cmd.find(response_to) != string::npos))
+            {
+                if (resp["success"])
+                {
                     RCLCPP_WARN(this->get_logger(), "%s successful", cmd.c_str());
-                    auto result {resp["result"]};
-                    if (result == NULL) {
+                    auto result{resp["result"]};
+                    if (result == NULL)
+                    {
                         RCLCPP_WARN(this->get_logger(), "No result, likely expected null type return");
-                    } else {
-                        try {
+                    }
+                    else
+                    {
+                        try
+                        {
                             RCLCPP_WARN(this->get_logger(), "DVL Result:\n%s", result.dump(2).c_str());
-                        } catch (const std::exception& e) {
+                        }
+                        catch (const std::exception &e)
+                        {
                             RCLCPP_WARN(this->get_logger(), "Error in returning result: %s", e.what());
                         }
                     }
                     rclcpp::sleep_for(std::chrono::milliseconds(50)); // wait 50ms for values to zero out
                     return true;
-                } else {
-                    RCLCPP_ERROR(this->get_logger(), "Dead reckoning reset failed: %s", 
-                            resp["error_message"].get<string>().c_str());
+                }
+                else
+                {
+                    RCLCPP_ERROR(this->get_logger(), "Dead reckoning reset failed: %s",
+                                 resp["error_message"].get<string>().c_str());
                     return false;
                 }
-            } else {
+            }
+            else
+            {
                 RCLCPP_WARN(this->get_logger(), "Unexpected response to command: %s", _dr_status_response.c_str());
                 return false;
             }
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception &e)
+        {
             retry_count++;
-            if (retry_count >= max_retries) {
+            if (retry_count >= max_retries)
+            {
                 RCLCPP_ERROR(this->get_logger(), "Failed to parse response after %d attempts: %s", retry_count, e.what());
                 return false;
             }
@@ -202,24 +227,28 @@ bool DVLA50Publisher::send_dvl_command(string cmd) {
         }
     }
 
-    if (do_log_raw_data_) {
+    if (do_log_raw_data_)
+    {
         RCLCPP_INFO(this->get_logger(), "Logging raw data to topic: %s", dvl_raw_topic.c_str());
         return true;
     }
-    else {
+    else
+    {
         RCLCPP_INFO(this->get_logger(), "Publishing DVL data to two topics: %s and %s", dvl_topic.c_str(), dead_reckoning_topic.c_str());
         return true;
     }
 }
 
-void DVLA50Publisher::reset_dead_reckoning(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res) {
+void DVLA50Publisher::reset_dead_reckoning(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
+{
     (void)req;
     bool success = send_dvl_command("\"reset_dead_reckoning\"");
     res->success = success;
     res->message = success ? "Dead reckoning reset successful" : "Dead reckoning reset failed";
 }
 
-void DVLA50Publisher::calibrate_gyro(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res) {
+void DVLA50Publisher::calibrate_gyro(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
+{
     (void)req;
     RCLCPP_WARN(this->get_logger(), "Temporary disconnection when calibrating gyro, expect NULL return");
     bool success = send_dvl_command("\"calibrate_gyro\"");
@@ -227,39 +256,44 @@ void DVLA50Publisher::calibrate_gyro(const std::shared_ptr<std_srvs::srv::Trigge
     res->message = success ? "Calibrate gyro successful" : "Calibrate gyro failed";
 }
 
-void DVLA50Publisher::toggle(const std::shared_ptr<std_srvs::srv::SetBool::Request> req, std::shared_ptr<std_srvs::srv::SetBool::Response> res) {
+void DVLA50Publisher::toggle(const std::shared_ptr<std_srvs::srv::SetBool::Request> req, std::shared_ptr<std_srvs::srv::SetBool::Response> res)
+{
     bool success = send_dvl_command(req->data ? "\"set_config\",\"parameters\":{\"acoustic_enabled\":true}" : "\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
     res->success = success;
     res->message = success ? (req->data ? "DVL turned on" : "DVL turned off") : "Failed to toggle DVL";
 }
 
-void DVLA50Publisher::turn_off(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res) {
+void DVLA50Publisher::turn_off(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
+{
     (void)req;
     bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
     res->success = success;
     res->message = success ? "turn_off successful" : "turn_off failed";
 }
 
-void DVLA50Publisher::turn_on(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res) {
+void DVLA50Publisher::turn_on(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
+{
     (void)req;
     bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":true}");
     res->success = success;
     res->message = success ? "turn_on successful" : "turn_on failed";
 }
 
-void DVLA50Publisher::get_config(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res) {
+void DVLA50Publisher::get_config(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
+{
     (void)req;
     bool success = send_dvl_command("\"get_config\"");
     res->success = success;
     res->message = success ? "Get config successful" : "Get config failed";
 }
 
-void DVLA50Publisher::timer_callback() 
+void DVLA50Publisher::timer_callback()
 {
     string raw_data = getData();
     json data = json::parse(raw_data);
 
-    if (do_log_raw_data_) {
+    if (do_log_raw_data_)
+    {
         String raw_msg;
         raw_msg.data = raw_data;
         RCLCPP_INFO(this->get_logger(), "%s", raw_data.c_str());
@@ -268,7 +302,7 @@ void DVLA50Publisher::timer_callback()
     }
 
     // Handle both velocity and position messages
-    if (data["type"] == "position_local") 
+    if (data["type"] == "position_local")
     {
         // Update position and attitude data
         DVLDeadReckoning dr_msg;
@@ -278,7 +312,7 @@ void DVLA50Publisher::timer_callback()
         dr_msg.ts = data["ts"];
         pub_dead_reckoning_->publish(dr_msg);
     }
-    else if (data["type"] == "velocity") 
+    else if (data["type"] == "velocity")
     {
         DVL dvl_msg;
         dvl_msg.header.stamp = this->now();
@@ -293,10 +327,11 @@ void DVLA50Publisher::timer_callback()
         dvl_msg.status = data["status"];
         dvl_msg.form = data["format"];
 
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 4; ++i)
+        {
             DVLBeam beam;
-            const auto& trans = data["transducers"][i];
-            
+            const auto &trans = data["transducers"][i];
+
             beam.id = trans["id"];
             beam.velocity = trans["velocity"];
             beam.distance = trans["distance"];
@@ -309,14 +344,17 @@ void DVLA50Publisher::timer_callback()
     }
 }
 
-int main(int argc, char** argv) 
+int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
     auto publisher = std::make_shared<DVLA50Publisher>();
-    
-    try {
+
+    try
+    {
         rclcpp::spin(publisher);
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception &e)
+    {
         RCLCPP_ERROR(publisher->get_logger(), "Exception: %s", e.what());
         rclcpp::shutdown();
         return 1;

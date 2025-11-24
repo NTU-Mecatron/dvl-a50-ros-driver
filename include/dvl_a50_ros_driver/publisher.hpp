@@ -14,7 +14,8 @@
 
 using namespace std;
 
-class DVLA50Publisher : public rclcpp::Node {
+class DVLA50Publisher : public rclcpp::Node
+{
 public:
     DVLA50Publisher();
     ~DVLA50Publisher();
@@ -43,7 +44,7 @@ private:
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr toggle_server_;
 
     string reset_dead_reckoning_service, calibrate_gyro_service, get_config_service, turn_off_service, turn_on_service, toggle_service;
-    
+
     int sock_;
     string tcp_ip_;
     int tcp_port_;

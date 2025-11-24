@@ -6,7 +6,8 @@
 #include <dvl_a50_ros_driver/msg/dvl.hpp>
 #include <dvl_a50_ros_driver/msg/dvl_beam.hpp>
 
-class DVLA50Subscriber : public rclcpp::Node {
+class DVLA50Subscriber : public rclcpp::Node
+{
 public:
     DVLA50Subscriber();
 
