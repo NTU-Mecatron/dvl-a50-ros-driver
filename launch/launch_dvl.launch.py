@@ -15,6 +15,7 @@ def generate_launch_description():
         'turn_off': '/dvl/turn_off',
         'turn_on': '/dvl/turn_on',
         'toggle': '/dvl/toggle',
+        'log_raw_data': False,
     }
 
     dvl_node = Node(
