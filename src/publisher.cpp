@@ -316,7 +316,7 @@ void DVLA50Publisher::timer_callback()
     {
         DVL dvl_msg;
         dvl_msg.header.stamp = this->now();
-        dvl_msg.header.frame_id = "dvl_link";
+        dvl_msg.header.frame_id = "auv/dvl_link";
         dvl_msg.time = data["time"];
         dvl_msg.velocity.x = data["vx"];
         dvl_msg.velocity.y = data["vy"];
