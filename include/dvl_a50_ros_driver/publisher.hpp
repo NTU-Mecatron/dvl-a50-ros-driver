@@ -50,7 +50,7 @@ private:
     int tcp_port_;
     bool do_log_raw_data_;
     string old_json_;
-    string dvl_topic, dvl_raw_topic, dead_reckoning_topic;
+    string dvl_topic, dvl_raw_topic, dead_reckoning_topic, dvl_frame_id_;
 };
 
 #endif

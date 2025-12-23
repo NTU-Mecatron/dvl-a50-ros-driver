@@ -24,6 +24,7 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     this->declare_parameter<string>("turn_off", "dvl/turn_off");
     this->declare_parameter<string>("turn_on", "dvl/turn_on");
     this->declare_parameter<string>("toggle", "dvl/toggle");
+    this->declare_parameter<std::string>("dvl_frame_id", "auv/dvl_link");
 
     tcp_ip_ = this->get_parameter("tcp_ip").as_string();
     tcp_port_ = this->get_parameter("tcp_port").as_int();
@@ -37,6 +38,7 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     turn_off_service = this->get_parameter("turn_off").as_string();
     turn_on_service = this->get_parameter("turn_on").as_string();
     toggle_service = this->get_parameter("toggle").as_string();
+    dvl_frame_id_ = this->get_parameter("dvl_frame_id").as_string();
 
     // Create publishers
     pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
@@ -316,7 +318,7 @@ void DVLA50Publisher::timer_callback()
     {
         DVL dvl_msg;
         dvl_msg.header.stamp = this->now();
-        dvl_msg.header.frame_id = "auv/dvl_link";
+        dvl_msg.header.frame_id = dvl_frame_id_;
         dvl_msg.time = data["time"];
         dvl_msg.velocity.x = data["vx"];
         dvl_msg.velocity.y = data["vy"];
