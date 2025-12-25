@@ -320,9 +320,12 @@ void DVLA50Publisher::timer_callback()
         dvl_msg.header.stamp = this->now();
         dvl_msg.header.frame_id = dvl_frame_id_;
         dvl_msg.time = data["time"];
-        dvl_msg.velocity.x = data["vx"];
-        dvl_msg.velocity.y = data["vy"];
-        dvl_msg.velocity.z = data["vz"];
+        float vx = data["vx"];
+        float vy = data["vy"];
+        float vz = data["vz"];
+        dvl_msg.velocity.x = vx;
+        dvl_msg.velocity.y = -vy;
+        dvl_msg.velocity.z = -vz;
         dvl_msg.fom = data["fom"];
         dvl_msg.altitude = data["altitude"];
         dvl_msg.velocity_valid = data["velocity_valid"];
