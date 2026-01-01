@@ -4,6 +4,8 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 
 def generate_launch_description():
+    ld = LaunchDescription()
+
     params = {
         'tcp_ip': '192.168.2.95',
         'tcp_port': 16171,
@@ -16,7 +18,8 @@ def generate_launch_description():
         'turn_on': '/dvl/turn_on',
         'toggle': '/dvl/toggle',
         'log_raw_data': False,
-        'dvl_frame_id': 'auv/dvl_link'
+        'dvl_frame_id': 'auv/dvl_link',
+        'output_twist_stamped_topic': 'dvl/twist_stamped'
     }
 
     dvl_node = Node(
@@ -27,4 +30,15 @@ def generate_launch_description():
         parameters=[params]
     )
 
-    return LaunchDescription([dvl_node])
+    dvl_repub_node = Node(
+        package='dvl_a50_ros_driver',
+        executable='dvl_republisher',
+        name='dvl_republisher',
+        output='screen',
+        parameters=[params]
+    )
+
+    ld.add_action(dvl_node)
+    ld.add_action(dvl_repub_node)
+
+    return ld
