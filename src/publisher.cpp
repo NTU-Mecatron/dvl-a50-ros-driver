@@ -370,9 +370,10 @@ void DVLA50Publisher::publish_twist_(const dvl_a50_ros_driver::msg::DVL& dvl_msg
     twist_msg.header = dvl_msg.header;
     
     // Set linear velocities (DVL measures linear velocity in body frame)
+    // Convert from FRD to FLU by negating Y and Z
     twist_msg.twist.twist.linear.x = dvl_msg.velocity.x;
-    twist_msg.twist.twist.linear.y = dvl_msg.velocity.y;
-    twist_msg.twist.twist.linear.z = dvl_msg.velocity.z;
+    twist_msg.twist.twist.linear.y = -dvl_msg.velocity.y;
+    twist_msg.twist.twist.linear.z = -dvl_msg.velocity.z;
     
     // Angular velocities are not measured by DVL, set to zero
     twist_msg.twist.twist.angular.x = 0.0;
