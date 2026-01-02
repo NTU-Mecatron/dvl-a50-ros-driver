@@ -26,6 +26,10 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     this->declare_parameter<string>("turn_on", "/dvl/turn_on");
     this->declare_parameter<string>("toggle", "/dvl/toggle");
     this->declare_parameter<string>("dvl_frame_id", "dvl_link");
+    this->declare_parameter<bool>("use_fom_to_compute_covariance", true);
+    this->declare_parameter<double>("linear_velocity_covariance_x", 0.01);
+    this->declare_parameter<double>("linear_velocity_covariance_y", 0.01);
+    this->declare_parameter<double>("linear_velocity_covariance_z", 0.01);
 
     tcp_ip_ = this->get_parameter("tcp_ip").as_string();
     tcp_port_ = this->get_parameter("tcp_port").as_int();
@@ -41,6 +45,10 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     turn_on_service = this->get_parameter("turn_on").as_string();
     toggle_service = this->get_parameter("toggle").as_string();
     dvl_frame_id_ = this->get_parameter("dvl_frame_id").as_string();
+    use_fom_to_compute_covariance_ = this->get_parameter("use_fom_to_compute_covariance").as_bool();
+    linear_velocity_covariance_x_ = this->get_parameter("linear_velocity_covariance_x").as_double();
+    linear_velocity_covariance_y_ = this->get_parameter("linear_velocity_covariance_y").as_double();
+    linear_velocity_covariance_z_ = this->get_parameter("linear_velocity_covariance_z").as_double();
 
     // Create publishers
     pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
@@ -386,17 +394,28 @@ void DVLA50Publisher::publish_twist_(const dvl_a50_ros_driver::msg::DVL& dvl_msg
     // Populate covariance matrix (6x6 = 36 elements)
     // The covariance is stored as a row-major array:
     // [x, y, z, rot_x, rot_y, rot_z]
-    // FOM (Figure of Merit) represents the standard deviation in m/s
-    // Variance = (std_dev)^2
-    double variance = dvl_msg.fom * dvl_msg.fom;
+    double variance_x, variance_y, variance_z;
+    if (use_fom_to_compute_covariance_)
+    {
+        // FOM (Figure of Merit) represents the standard deviation in m/s
+        // Variance = (std_dev)^2
+        variance_x = variance_y = variance_z = dvl_msg.fom * dvl_msg.fom;
+    }
+    else
+    {
+        // Use user-defined covariances from parameters
+        variance_x = linear_velocity_covariance_x_;
+        variance_y = linear_velocity_covariance_y_;
+        variance_z = linear_velocity_covariance_z_;
+    }
     
     // Initialize all covariances to zero
     std::fill(twist_msg.twist.covariance.begin(), twist_msg.twist.covariance.end(), 0.0);
     
     // Set linear velocity covariances (diagonal elements)
-    twist_msg.twist.covariance[0] = variance;   // x variance
-    twist_msg.twist.covariance[7] = variance;   // y variance
-    twist_msg.twist.covariance[14] = variance;  // z variance
+    twist_msg.twist.covariance[0] = variance_x;   // x variance
+    twist_msg.twist.covariance[7] = variance_y;   // y variance
+    twist_msg.twist.covariance[14] = variance_z;  // z variance
     
     // Angular velocity covariances are set to a large value since DVL doesn't measure them
     // This indicates high uncertainty

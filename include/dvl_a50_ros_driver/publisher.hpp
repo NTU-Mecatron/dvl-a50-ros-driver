@@ -52,6 +52,10 @@ private:
     string tcp_ip_;
     int tcp_port_;
     bool do_log_raw_data_;
+    bool use_fom_to_compute_covariance_;
+    double linear_velocity_covariance_x_;
+    double linear_velocity_covariance_y_;
+    double linear_velocity_covariance_z_;
     string old_json_;
     string dvl_topic, dvl_raw_topic, dead_reckoning_topic, twist_stamped_topic, dvl_frame_id_;
 };
