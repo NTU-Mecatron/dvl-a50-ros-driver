@@ -11,6 +11,7 @@
 #include <dvl_a50_ros_driver/msg/dvl.hpp>
 #include <dvl_a50_ros_driver/msg/dvl_beam.hpp>
 #include <dvl_a50_ros_driver/msg/dvl_dead_reckoning.hpp>
+#include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 
 using namespace std;
 
@@ -31,11 +32,13 @@ private:
     void turn_off(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
     void turn_on(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
     void toggle(const std::shared_ptr<std_srvs::srv::SetBool::Request> req, std::shared_ptr<std_srvs::srv::SetBool::Response> res);
+    void publish_twist_(const dvl_a50_ros_driver::msg::DVL& dvl_msg);
 
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_raw_;
     rclcpp::Publisher<dvl_a50_ros_driver::msg::DVL>::SharedPtr pub_velocity_;
     rclcpp::Publisher<dvl_a50_ros_driver::msg::DVLDeadReckoning>::SharedPtr pub_dead_reckoning_;
+    rclcpp::Publisher<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr dvl_twist_pub_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_dead_reckoning_server_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr calibrate_gyro_server_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr get_config_server_;
@@ -50,7 +53,7 @@ private:
     int tcp_port_;
     bool do_log_raw_data_;
     string old_json_;
-    string dvl_topic, dvl_raw_topic, dead_reckoning_topic, dvl_frame_id_;
+    string dvl_topic, dvl_raw_topic, dead_reckoning_topic, twist_stamped_topic, dvl_frame_id_;
 };
 
 #endif

@@ -62,23 +62,8 @@ rosidl_get_typesupport_target(cpp_typesupport_target_sub
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
 target_link_libraries(subscriber "${cpp_typesupport_target_sub}")
 
-# Add node dvl_republisher
-add_executable(dvl_republisher src/dvl_republisher.cpp)
-target_include_directories(dvl_republisher PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-
-ament_target_dependencies(dvl_republisher
-  rclcpp
-  geometry_msgs
-)
-
-rosidl_get_typesupport_target(cpp_typesupport_target_sub
-  ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(dvl_republisher "${cpp_typesupport_target_sub}")
-
 # 4. Install C++ Targets
-install(TARGETS publisher subscriber dvl_republisher
+install(TARGETS publisher subscriber
   DESTINATION lib/${PROJECT_NAME}
 )
 

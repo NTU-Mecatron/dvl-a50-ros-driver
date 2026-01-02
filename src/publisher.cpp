@@ -18,13 +18,14 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     this->declare_parameter<string>("dvl_topic", "dvl/velocity");
     this->declare_parameter<string>("dvl_raw_topic", "dvl/raw_data");
     this->declare_parameter<string>("dead_reckoning_topic", "dvl/dead_reckoning");
+    this->declare_parameter<string>("output_twist_stamped_topic", "/dvl/twist_stamped");
     this->declare_parameter<string>("reset_dead_reckoning", "dvl/reset_dead_reckoning");
     this->declare_parameter<string>("calibrate_gyro", "dvl/calibrate_gyro");
     this->declare_parameter<string>("get_config", "dvl/get_config");
     this->declare_parameter<string>("turn_off", "dvl/turn_off");
     this->declare_parameter<string>("turn_on", "dvl/turn_on");
     this->declare_parameter<string>("toggle", "dvl/toggle");
-    this->declare_parameter<std::string>("dvl_frame_id", "auv/dvl_link");
+    this->declare_parameter<string>("dvl_frame_id", "auv/dvl_link");
 
     tcp_ip_ = this->get_parameter("tcp_ip").as_string();
     tcp_port_ = this->get_parameter("tcp_port").as_int();
@@ -32,6 +33,7 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     dvl_topic = this->get_parameter("dvl_topic").as_string();
     dvl_raw_topic = this->get_parameter("dvl_raw_topic").as_string();
     dead_reckoning_topic = this->get_parameter("dead_reckoning_topic").as_string();
+    twist_stamped_topic = this->get_parameter("output_twist_stamped_topic").as_string();
     reset_dead_reckoning_service = this->get_parameter("reset_dead_reckoning").as_string();
     calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
     get_config_service = this->get_parameter("get_config").as_string();
@@ -44,6 +46,8 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
     pub_velocity_ = this->create_publisher<DVL>(dvl_topic, 10);
     pub_dead_reckoning_ = this->create_publisher<DVLDeadReckoning>(dead_reckoning_topic, 10);
+    dvl_twist_pub_ = this->create_publisher<geometry_msgs::msg::TwistWithCovarianceStamped>(
+        twist_stamped_topic, 10);
 
     // Create services
     reset_dead_reckoning_server_ = this->create_service<std_srvs::srv::Trigger>(
@@ -346,7 +350,61 @@ void DVLA50Publisher::timer_callback()
             dvl_msg.beams.push_back(beam);
         }
         pub_velocity_->publish(dvl_msg);
+        
+        // Publish TwistWithCovarianceStamped message
+        publish_twist_(dvl_msg);
     }
+}
+
+void DVLA50Publisher::publish_twist_(const dvl_a50_ros_driver::msg::DVL& dvl_msg)
+{
+    // Only publish if velocity is valid
+    if (!dvl_msg.velocity_valid)
+    {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "DVL velocity not valid, skipping TwistWithCovarianceStamped message");
+        return;
+    }
+
+    // Create TwistWithCovarianceStamped message
+    geometry_msgs::msg::TwistWithCovarianceStamped twist_msg;
+    
+    // Copy header information
+    twist_msg.header = dvl_msg.header;
+    
+    // Set linear velocities (DVL measures linear velocity in body frame)
+    twist_msg.twist.twist.linear.x = dvl_msg.velocity.x;
+    twist_msg.twist.twist.linear.y = dvl_msg.velocity.y;
+    twist_msg.twist.twist.linear.z = dvl_msg.velocity.z;
+    
+    // Angular velocities are not measured by DVL, set to zero
+    twist_msg.twist.twist.angular.x = 0.0;
+    twist_msg.twist.twist.angular.y = 0.0;
+    twist_msg.twist.twist.angular.z = 0.0;
+    
+    // Populate covariance matrix (6x6 = 36 elements)
+    // The covariance is stored as a row-major array:
+    // [x, y, z, rot_x, rot_y, rot_z]
+    // FOM (Figure of Merit) represents the standard deviation in m/s
+    // Variance = (std_dev)^2
+    double variance = dvl_msg.fom * dvl_msg.fom;
+    
+    // Initialize all covariances to zero
+    std::fill(twist_msg.twist.covariance.begin(), twist_msg.twist.covariance.end(), 0.0);
+    
+    // Set linear velocity covariances (diagonal elements)
+    twist_msg.twist.covariance[0] = variance;   // x variance
+    twist_msg.twist.covariance[7] = variance;   // y variance
+    twist_msg.twist.covariance[14] = variance;  // z variance
+    
+    // Angular velocity covariances are set to a large value since DVL doesn't measure them
+    // This indicates high uncertainty
+    twist_msg.twist.covariance[21] = 999999.0;  // rot_x variance (unknown)
+    twist_msg.twist.covariance[28] = 999999.0;  // rot_y variance (unknown)
+    twist_msg.twist.covariance[35] = 999999.0;  // rot_z variance (unknown)
+    
+    // Publish the message
+    dvl_twist_pub_->publish(twist_msg);
 }
 
 int main(int argc, char **argv)
