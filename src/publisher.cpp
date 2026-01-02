@@ -15,17 +15,17 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     this->declare_parameter<string>("tcp_ip", "192.168.194.95");
     this->declare_parameter<int>("tcp_port", 16171);
     this->declare_parameter<bool>("log_raw_data", false);
-    this->declare_parameter<string>("dvl_topic", "dvl/velocity");
-    this->declare_parameter<string>("dvl_raw_topic", "dvl/raw_data");
-    this->declare_parameter<string>("dead_reckoning_topic", "dvl/dead_reckoning");
+    this->declare_parameter<string>("dvl_topic", "/dvl/velocity");
+    this->declare_parameter<string>("dvl_raw_topic", "/dvl/raw_data");
+    this->declare_parameter<string>("dead_reckoning_topic", "/dvl/dead_reckoning");
     this->declare_parameter<string>("output_twist_stamped_topic", "/dvl/twist_stamped");
-    this->declare_parameter<string>("reset_dead_reckoning", "dvl/reset_dead_reckoning");
-    this->declare_parameter<string>("calibrate_gyro", "dvl/calibrate_gyro");
-    this->declare_parameter<string>("get_config", "dvl/get_config");
-    this->declare_parameter<string>("turn_off", "dvl/turn_off");
-    this->declare_parameter<string>("turn_on", "dvl/turn_on");
-    this->declare_parameter<string>("toggle", "dvl/toggle");
-    this->declare_parameter<string>("dvl_frame_id", "auv/dvl_link");
+    this->declare_parameter<string>("reset_dead_reckoning", "/dvl/reset_dead_reckoning");
+    this->declare_parameter<string>("calibrate_gyro", "/dvl/calibrate_gyro");
+    this->declare_parameter<string>("get_config", "/dvl/get_config");
+    this->declare_parameter<string>("turn_off", "/dvl/turn_off");
+    this->declare_parameter<string>("turn_on", "/dvl/turn_on");
+    this->declare_parameter<string>("toggle", "/dvl/toggle");
+    this->declare_parameter<string>("dvl_frame_id", "dvl_link");
 
     tcp_ip_ = this->get_parameter("tcp_ip").as_string();
     tcp_port_ = this->get_parameter("tcp_port").as_int();
@@ -82,6 +82,9 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(33), // ~30 Hz
         std::bind(&DVLA50Publisher::timer_callback, this));
+
+    RCLCPP_INFO(this->get_logger(), "Publishing to %s", 
+            twist_stamped_topic.c_str());
 }
 
 DVLA50Publisher::~DVLA50Publisher()

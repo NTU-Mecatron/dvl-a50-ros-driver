@@ -12,6 +12,7 @@ def generate_launch_description():
         'dvl_topic': 'velocity',
         'dead_reckoning_topic': 'dead_reckoning',
         'reset_dead_reckoning': 'reset_dead_reckoning',
+        'output_twist_stamped_topic': 'twist_stamped',
         'calibrate_gyro': 'calibrate_gyro',
         'get_config': 'get_config',
         'turn_off': 'turn_off',
@@ -19,7 +20,6 @@ def generate_launch_description():
         'toggle': 'toggle',
         'log_raw_data': False,
         'dvl_frame_id': 'dvl_link',
-        'output_twist_stamped_topic': 'twist_stamped'
     }
 
     dvl_node = Node(
