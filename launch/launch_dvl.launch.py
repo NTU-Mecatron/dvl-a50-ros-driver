@@ -9,7 +9,7 @@ def generate_launch_description():
     params = {
         'tcp_ip': '192.168.2.95',
         'tcp_port': 16171,
-        'dvl_topic': 'velocity',
+        'dvl_topic': 'original_data',
         'dead_reckoning_topic': 'dead_reckoning',
         'reset_dead_reckoning': 'reset_dead_reckoning',
         'output_twist_stamped_topic': 'twist_stamped',
