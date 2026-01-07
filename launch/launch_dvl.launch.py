@@ -21,9 +21,9 @@ def generate_launch_description():
         'log_raw_data': False,
         'dvl_frame_id': 'dvl_link',
         'use_fom_to_compute_covariance': True,      # Set to False to use custom covariances
-        'linear_velocity_covariance_x': 0.01,       # Custom X-axis velocity variance (m²/s²)
-        'linear_velocity_covariance_y': 0.01,       # Custom Y-axis velocity variance (m²/s²)
-        'linear_velocity_covariance_z': 0.01,       # Custom Z-axis velocity variance (m²/s²)
+        'linear_vel_var_x': 0.01,       # Custom X-axis velocity variance (m²/s²)
+        'linear_vel_var_y': 0.01,       # Custom Y-axis velocity variance (m²/s²)
+        'linear_vel_var_z': 0.01,       # Custom Z-axis velocity variance (m²/s²)
     }
 
     dvl_node = Node(

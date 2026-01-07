@@ -27,9 +27,9 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     this->declare_parameter<string>("toggle", "dvl/toggle");
     this->declare_parameter<string>("dvl_frame_id", "dvl_link");
     this->declare_parameter<bool>("use_fom_to_compute_covariance", true);
-    this->declare_parameter<double>("linear_velocity_covariance_x", 0.01);
-    this->declare_parameter<double>("linear_velocity_covariance_y", 0.01);
-    this->declare_parameter<double>("linear_velocity_covariance_z", 0.01);
+    this->declare_parameter<double>("linear_vel_var_x", 0.01);
+    this->declare_parameter<double>("linear_vel_var_y", 0.01);
+    this->declare_parameter<double>("linear_vel_var_z", 0.01);
 
     tcp_ip_ = this->get_parameter("tcp_ip").as_string();
     tcp_port_ = this->get_parameter("tcp_port").as_int();
@@ -46,9 +46,9 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     toggle_service = this->get_parameter("toggle").as_string();
     dvl_frame_id_ = this->get_parameter("dvl_frame_id").as_string();
     use_fom_to_compute_covariance_ = this->get_parameter("use_fom_to_compute_covariance").as_bool();
-    linear_velocity_covariance_x_ = this->get_parameter("linear_velocity_covariance_x").as_double();
-    linear_velocity_covariance_y_ = this->get_parameter("linear_velocity_covariance_y").as_double();
-    linear_velocity_covariance_z_ = this->get_parameter("linear_velocity_covariance_z").as_double();
+    linear_vel_var_x_ = this->get_parameter("linear_vel_var_x").as_double();
+    linear_vel_var_y_ = this->get_parameter("linear_vel_var_y").as_double();
+    linear_vel_var_z_ = this->get_parameter("linear_vel_var_z").as_double();
 
     // Create publishers
     pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
@@ -404,9 +404,9 @@ void DVLA50Publisher::publish_twist_(const dvl_a50_ros_driver::msg::DVL& dvl_msg
     else
     {
         // Use user-defined covariances from parameters
-        variance_x = linear_velocity_covariance_x_;
-        variance_y = linear_velocity_covariance_y_;
-        variance_z = linear_velocity_covariance_z_;
+        variance_x = linear_vel_var_x_;
+        variance_y = linear_vel_var_y_;
+        variance_z = linear_vel_var_z_;
     }
     
     // Initialize all covariances to zero
