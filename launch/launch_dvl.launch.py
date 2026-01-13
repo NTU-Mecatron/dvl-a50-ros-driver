@@ -9,6 +9,7 @@ def generate_launch_description():
     params = {
         'tcp_ip': '192.168.2.95',
         'tcp_port': 16171,
+        'dvl_raw_topic': 'raw_data',
         'dvl_topic': 'original_data',
         'dead_reckoning_topic': 'dead_reckoning',
         'reset_dead_reckoning': 'reset_dead_reckoning',
@@ -29,12 +30,22 @@ def generate_launch_description():
     dvl_node = Node(
         package='dvl_a50_ros_driver',
         executable='publisher',
-        name='dvl',
+        name='publisher',
+        namespace='dvl',
+        output='screen',
+        parameters=[params]
+    )
+
+    dvl_repub_node = Node(
+        package='dvl_a50_ros_driver',
+        executable='dvl_republisher',
+        name='dvl_republisher',
         namespace='dvl',
         output='screen',
         parameters=[params]
     )
 
     ld.add_action(dvl_node)
+    ld.add_action(dvl_repub_node)
 
     return ld
