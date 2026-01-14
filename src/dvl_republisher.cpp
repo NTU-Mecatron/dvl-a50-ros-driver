@@ -11,9 +11,19 @@ dvl_republisher::dvl_republisher() : Node("dvl_republisher")
     // Declare and get parameters
     this->declare_parameter<std::string>("dvl_topic", "dvl/original_data");
     this->declare_parameter<std::string>("output_twist_stamped_topic", "dvl/twist_stamped");
+    this->declare_parameter<bool>("use_original_covariance", true);
+    this->declare_parameter<bool>("use_fom_to_compute_covariance", false);
+    this->declare_parameter<double>("linear_vel_var_x", 0.01);
+    this->declare_parameter<double>("linear_vel_var_y", 0.01);
+    this->declare_parameter<double>("linear_vel_var_z", 0.01);
 
     std::string input_topic = this->get_parameter("dvl_topic").as_string();
     std::string output_topic = this->get_parameter("output_twist_stamped_topic").as_string();
+    use_original_covariance_ = this->get_parameter("use_original_covariance").as_bool();
+    use_fom_to_compute_covariance_ = this->get_parameter("use_fom_to_compute_covariance").as_bool();
+    linear_vel_var_x_ = this->get_parameter("linear_vel_var_x").as_double();
+    linear_vel_var_y_ = this->get_parameter("linear_vel_var_y").as_double();
+    linear_vel_var_z_ = this->get_parameter("linear_vel_var_z").as_double();
 
     // Create publisher for TwistWithCovarianceStamped messages
     dvl_twist_pub_ = this->create_publisher<geometry_msgs::msg::TwistWithCovarianceStamped>(
@@ -59,7 +69,17 @@ void dvl_republisher::dvl_callback(const dvl_a50_ros_driver::msg::DVL::SharedPtr
     // The covariance is stored as a row-major array:
     // [x, y, z, rot_x, rot_y, rot_z]
     double variance_x, variance_y, variance_z;
-    if (use_fom_to_compute_covariance_)
+    
+    // Priority order: 1) DVL covariance, 2) FOM, 3) User-defined parameters
+    if (use_original_covariance_ && msg->covariance.size() == 9)
+    {
+        // Extract diagonal elements from DVL covariance matrix (3x3 row-major)
+        // covariance[0] = xx, covariance[4] = yy, covariance[8] = zz
+        variance_x = msg->covariance[0];  // xx
+        variance_y = msg->covariance[4];  // yy
+        variance_z = msg->covariance[8];  // zz
+    }
+    else if (use_fom_to_compute_covariance_)
     {
         // FOM (Figure of Merit) represents the standard deviation in m/s
         // Variance = (std_dev)^2

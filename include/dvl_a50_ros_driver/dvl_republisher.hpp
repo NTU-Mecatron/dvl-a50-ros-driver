@@ -20,6 +20,7 @@ namespace dvl_a50_ros_driver
     rclcpp::Subscription<dvl_a50_ros_driver::msg::DVL>::SharedPtr dvl_sub_;
     rclcpp::Publisher<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr dvl_twist_pub_;
 
+    bool use_original_covariance_;
     bool use_fom_to_compute_covariance_;
     double linear_vel_var_x_;
     double linear_vel_var_y_;

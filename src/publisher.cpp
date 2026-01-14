@@ -300,7 +300,6 @@ void DVLA50Publisher::timer_callback()
         raw_msg.data = raw_data;
         RCLCPP_INFO(this->get_logger(), "%s", raw_data.c_str());
         pub_raw_->publish(raw_msg);
-        return;
     }
 
     // Handle both velocity and position messages
@@ -323,6 +322,22 @@ void DVLA50Publisher::timer_callback()
         dvl_msg.velocity.x = data["vx"];
         dvl_msg.velocity.y = data["vy"];
         dvl_msg.velocity.z = data["vz"];
+        
+        // Extract covariance matrix (3x3) and store in row-major order
+        if (data.contains("covariance") && data["covariance"].is_array() && data["covariance"].size() == 3)
+        {
+            for (int i = 0; i < 3; ++i)
+            {
+                if (data["covariance"][i].is_array() && data["covariance"][i].size() == 3)
+                {
+                    for (int j = 0; j < 3; ++j)
+                    {
+                        dvl_msg.covariance[i * 3 + j] = data["covariance"][i][j];
+                    }
+                }
+            }
+        }
+        
         dvl_msg.fom = data["fom"];
         dvl_msg.altitude = data["altitude"];
         dvl_msg.velocity_valid = data["velocity_valid"];
