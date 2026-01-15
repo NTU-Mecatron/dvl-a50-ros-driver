@@ -10,8 +10,6 @@ def generate_launch_description():
         'tcp_ip': '192.168.2.95',
         'tcp_port': 16171,
         'dvl_raw_topic': 'raw_data',
-        'dvl_topic': 'original_data',
-        'dead_reckoning_topic': 'dead_reckoning',
         'reset_dead_reckoning': 'reset_dead_reckoning',
         'output_twist_stamped_topic': 'twist_stamped',
         'calibrate_gyro': 'calibrate_gyro',
@@ -19,7 +17,6 @@ def generate_launch_description():
         'turn_off': 'turn_off',
         'turn_on': 'turn_on',
         'toggle': 'toggle',
-        'log_raw_data': False,
         'dvl_frame_id': 'dvl_link',
         'use_original_covariance': True,        # Use DVL covariance matrix
         'use_fom_to_compute_covariance': False, # OR Use FOM to compute covariance

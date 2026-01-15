@@ -70,12 +70,16 @@ target_include_directories(dvl_republisher PUBLIC
 
 ament_target_dependencies(dvl_republisher
   rclcpp
+  std_msgs
   geometry_msgs
 )
 
-rosidl_get_typesupport_target(cpp_typesupport_target_sub
+# Link external JSON library for parsing raw DVL data
+target_link_libraries(dvl_republisher nlohmann_json::nlohmann_json)
+
+rosidl_get_typesupport_target(cpp_typesupport_target_republisher
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(dvl_republisher "${cpp_typesupport_target_sub}")
+target_link_libraries(dvl_republisher "${cpp_typesupport_target_republisher}")
 
 # 4. Install C++ Targets
 install(TARGETS publisher subscriber dvl_republisher

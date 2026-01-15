@@ -4,9 +4,6 @@
 #include <iomanip>
 
 using json = nlohmann::json;
-using DVL = dvl_a50_ros_driver::msg::DVL;
-using DVLBeam = dvl_a50_ros_driver::msg::DVLBeam;
-using DVLDeadReckoning = dvl_a50_ros_driver::msg::DVLDeadReckoning;
 using String = std_msgs::msg::String;
 
 DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
@@ -14,36 +11,26 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     // Declare and get parameters
     this->declare_parameter<string>("tcp_ip", "192.168.194.95");
     this->declare_parameter<int>("tcp_port", 16171);
-    this->declare_parameter<bool>("log_raw_data", false);
-    this->declare_parameter<string>("dvl_topic", "dvl/original_data");
     this->declare_parameter<string>("dvl_raw_topic", "dvl/raw_data");
-    this->declare_parameter<string>("dead_reckoning_topic", "dvl/dead_reckoning");
     this->declare_parameter<string>("reset_dead_reckoning", "dvl/reset_dead_reckoning");
     this->declare_parameter<string>("calibrate_gyro", "dvl/calibrate_gyro");
     this->declare_parameter<string>("get_config", "dvl/get_config");
     this->declare_parameter<string>("turn_off", "dvl/turn_off");
     this->declare_parameter<string>("turn_on", "dvl/turn_on");
     this->declare_parameter<string>("toggle", "dvl/toggle");
-    this->declare_parameter<string>("dvl_frame_id", "dvl_link");
 
     tcp_ip_ = this->get_parameter("tcp_ip").as_string();
     tcp_port_ = this->get_parameter("tcp_port").as_int();
-    do_log_raw_data_ = this->get_parameter("log_raw_data").as_bool();
-    dvl_topic = this->get_parameter("dvl_topic").as_string();
     dvl_raw_topic = this->get_parameter("dvl_raw_topic").as_string();
-    dead_reckoning_topic = this->get_parameter("dead_reckoning_topic").as_string();
     reset_dead_reckoning_service = this->get_parameter("reset_dead_reckoning").as_string();
     calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
     get_config_service = this->get_parameter("get_config").as_string();
     turn_off_service = this->get_parameter("turn_off").as_string();
     turn_on_service = this->get_parameter("turn_on").as_string();
     toggle_service = this->get_parameter("toggle").as_string();
-    dvl_frame_id_ = this->get_parameter("dvl_frame_id").as_string();
 
-    // Create publishers
+    // Create publisher for raw JSON data
     pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
-    pub_velocity_ = this->create_publisher<DVL>(dvl_topic, 10);
-    pub_dead_reckoning_ = this->create_publisher<DVLDeadReckoning>(dead_reckoning_topic, 10);
 
     // Create services
     reset_dead_reckoning_server_ = this->create_service<std_srvs::srv::Trigger>(
@@ -229,16 +216,7 @@ bool DVLA50Publisher::send_dvl_command(string cmd)
         }
     }
 
-    if (do_log_raw_data_)
-    {
-        RCLCPP_INFO(this->get_logger(), "Logging raw data to topic: %s", dvl_raw_topic.c_str());
-        return true;
-    }
-    else
-    {
-        RCLCPP_INFO(this->get_logger(), "Publishing DVL data to two topics: %s and %s", dvl_topic.c_str(), dead_reckoning_topic.c_str());
-        return true;
-    }
+    return false;
 }
 
 void DVLA50Publisher::reset_dead_reckoning(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
@@ -292,73 +270,11 @@ void DVLA50Publisher::get_config(const std::shared_ptr<std_srvs::srv::Trigger::R
 void DVLA50Publisher::timer_callback()
 {
     string raw_data = getData();
-    json data = json::parse(raw_data);
 
-    if (do_log_raw_data_)
-    {
-        String raw_msg;
-        raw_msg.data = raw_data;
-        RCLCPP_INFO(this->get_logger(), "%s", raw_data.c_str());
-        pub_raw_->publish(raw_msg);
-    }
-
-    // Handle both velocity and position messages
-    if (data["type"] == "position_local")
-    {
-        // Update position and attitude data
-        DVLDeadReckoning dr_msg;
-        dr_msg.attitude = {data["roll"], data["pitch"], data["yaw"]};
-        dr_msg.position = {data["x"], data["y"], data["z"]};
-        dr_msg.std = data["std"];
-        dr_msg.ts = data["ts"];
-        pub_dead_reckoning_->publish(dr_msg);
-    }
-    else if (data["type"] == "velocity")
-    {
-        DVL dvl_msg;
-        dvl_msg.header.stamp = this->now();
-        dvl_msg.header.frame_id = dvl_frame_id_;
-        dvl_msg.time = data["time"];
-        dvl_msg.velocity.x = data["vx"];
-        dvl_msg.velocity.y = data["vy"];
-        dvl_msg.velocity.z = data["vz"];
-        
-        // Extract covariance matrix (3x3) and store in row-major order
-        if (data.contains("covariance") && data["covariance"].is_array() && data["covariance"].size() == 3)
-        {
-            for (int i = 0; i < 3; ++i)
-            {
-                if (data["covariance"][i].is_array() && data["covariance"][i].size() == 3)
-                {
-                    for (int j = 0; j < 3; ++j)
-                    {
-                        dvl_msg.covariance[i * 3 + j] = data["covariance"][i][j];
-                    }
-                }
-            }
-        }
-        
-        dvl_msg.fom = data["fom"];
-        dvl_msg.altitude = data["altitude"];
-        dvl_msg.velocity_valid = data["velocity_valid"];
-        dvl_msg.status = data["status"];
-        dvl_msg.form = data["format"];
-
-        for (int i = 0; i < 4; ++i)
-        {
-            DVLBeam beam;
-            const auto &trans = data["transducers"][i];
-
-            beam.id = trans["id"];
-            beam.velocity = trans["velocity"];
-            beam.distance = trans["distance"];
-            beam.rssi = trans["rssi"];
-            beam.nsd = trans["nsd"];
-            beam.valid = trans["beam_valid"];
-            dvl_msg.beams.push_back(beam);
-        }
-        pub_velocity_->publish(dvl_msg);
-    }
+    // Publish raw JSON data for downstream processing
+    String raw_msg;
+    raw_msg.data = raw_data;
+    pub_raw_->publish(raw_msg);
 }
 
 int main(int argc, char **argv)
