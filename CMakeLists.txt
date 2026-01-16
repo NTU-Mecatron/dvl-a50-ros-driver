@@ -16,12 +16,13 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
 # 2. Generate Custom Messages
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/DVL.msg"
-  "msg/DVLBeam.msg"
-  "msg/DVLDeadReckoning.msg"
-  DEPENDENCIES std_msgs geometry_msgs
-)
+# TEMPORARILY DISABLED - uncomment to re-enable
+# rosidl_generate_interfaces(${PROJECT_NAME}
+#   "msg/DVL.msg"
+#   "msg/DVLBeam.msg"
+#   "msg/DVLDeadReckoning.msg"
+#   DEPENDENCIES std_msgs geometry_msgs
+# )
 
 # 3. Build C++ Nodes
 
@@ -42,25 +43,10 @@ ament_target_dependencies(publisher
 target_link_libraries(publisher nlohmann_json::nlohmann_json)
 
 # Link the messages generated in THIS package
-rosidl_get_typesupport_target(cpp_typesupport_target
-  ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(publisher "${cpp_typesupport_target}")
-
-# --- Subscriber ---
-add_executable(subscriber src/subscriber.cpp)
-target_include_directories(subscriber PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-
-ament_target_dependencies(subscriber
-  rclcpp
-  std_msgs
-  geometry_msgs
-)
-
-rosidl_get_typesupport_target(cpp_typesupport_target_sub
-  ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(subscriber "${cpp_typesupport_target_sub}")
+# TEMPORARILY DISABLED - uncomment to re-enable
+# rosidl_get_typesupport_target(cpp_typesupport_target
+#   ${PROJECT_NAME} "rosidl_typesupport_cpp")
+# target_link_libraries(publisher "${cpp_typesupport_target}")
 
 # Add node dvl_republisher
 add_executable(dvl_republisher src/dvl_republisher.cpp)
@@ -77,12 +63,13 @@ ament_target_dependencies(dvl_republisher
 # Link external JSON library for parsing raw DVL data
 target_link_libraries(dvl_republisher nlohmann_json::nlohmann_json)
 
-rosidl_get_typesupport_target(cpp_typesupport_target_republisher
-  ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(dvl_republisher "${cpp_typesupport_target_republisher}")
+# TEMPORARILY DISABLED - uncomment to re-enable
+# rosidl_get_typesupport_target(cpp_typesupport_target_republisher
+#   ${PROJECT_NAME} "rosidl_typesupport_cpp")
+# target_link_libraries(dvl_republisher "${cpp_typesupport_target_republisher}")
 
 # 4. Install C++ Targets
-install(TARGETS publisher subscriber dvl_republisher
+install(TARGETS publisher dvl_republisher
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -102,6 +89,7 @@ install(DIRECTORY
 
 # 7. Export
 ament_export_include_directories(include)
-ament_export_dependencies(rosidl_default_runtime)
+# TEMPORARILY DISABLED - uncomment to re-enable custom messages
+# ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()
