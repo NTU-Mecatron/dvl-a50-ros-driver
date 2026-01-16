@@ -10,7 +10,8 @@
   <url type="website">https://waterlinked.com/product/dvl-a50</url>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <!-- TEMPORARILY DISABLED - uncomment to re-enable Python scripts -->
+  <!-- <buildtool_depend>ament_cmake_python</buildtool_depend> -->
 
   <depend>rclcpp</depend>
   <depend>rclpy</depend>

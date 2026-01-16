@@ -74,12 +74,13 @@ install(TARGETS publisher dvl_republisher
 )
 
 # 5. Install Python Executable Scripts
-install(PROGRAMS
-  scripts/publisher.py
-  scripts/subscriber.py
-  scripts/subscriber_gui.py
-  DESTINATION lib/${PROJECT_NAME}
-)
+# TEMPORARILY DISABLED - uncomment to re-enable
+# install(PROGRAMS
+#   scripts/publisher.py
+#   scripts/subscriber.py
+#   scripts/subscriber_gui.py
+#   DESTINATION lib/${PROJECT_NAME}
+# )
 
 # 6. Install launch files
 install(DIRECTORY
