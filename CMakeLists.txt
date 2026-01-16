@@ -15,10 +15,13 @@ find_package(geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-# # 2. Generate Custom Messages
-# rosidl_generate_interfaces(${PROJECT_NAME}
-#   DEPENDENCIES std_msgs geometry_msgs
-# )
+# 2. Generate Custom Messages
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/DVL.msg"
+  "msg/DVLBeam.msg"
+  "msg/DVLDeadReckoning.msg"
+  DEPENDENCIES std_msgs geometry_msgs
+)
 
 # 3. Build C++ Nodes
 
