@@ -10,23 +10,12 @@
   <url type="website">https://waterlinked.com/product/dvl-a50</url>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <!-- TEMPORARILY DISABLED - uncomment to re-enable Python scripts -->
-  <!-- <buildtool_depend>ament_cmake_python</buildtool_depend> -->
 
   <depend>rclcpp</depend>
-  <depend>rclpy</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
   <depend>geometry_msgs</depend>
   <depend>nlohmann-json-dev</depend>
-
-  <!-- TEMPORARILY DISABLED - uncomment to re-enable custom messages -->
-  <!-- <buildtool_depend>rosidl_default_generators</buildtool_depend> -->
-  <!-- <exec_depend>rosidl_default_runtime</exec_depend> -->
-  <!-- <member_of_group>rosidl_interface_packages</member_of_group> -->
-
-  <!-- TEMPORARILY DISABLED - uncomment to re-enable Python scripts -->
-  <!-- <exec_depend>python3-tk</exec_depend> -->
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
