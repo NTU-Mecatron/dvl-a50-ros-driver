@@ -15,8 +15,6 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     this->declare_parameter<string>("reset_dead_reckoning", "dvl/reset_dead_reckoning");
     this->declare_parameter<string>("calibrate_gyro", "dvl/calibrate_gyro");
     this->declare_parameter<string>("get_config", "dvl/get_config");
-    this->declare_parameter<string>("turn_off", "dvl/turn_off");
-    this->declare_parameter<string>("turn_on", "dvl/turn_on");
     this->declare_parameter<string>("toggle", "dvl/toggle");
 
     tcp_ip_ = this->get_parameter("tcp_ip").as_string();
@@ -25,8 +23,6 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     reset_dead_reckoning_service = this->get_parameter("reset_dead_reckoning").as_string();
     calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
     get_config_service = this->get_parameter("get_config").as_string();
-    turn_off_service = this->get_parameter("turn_off").as_string();
-    turn_on_service = this->get_parameter("turn_on").as_string();
     toggle_service = this->get_parameter("toggle").as_string();
 
     // Create publisher for raw JSON data
@@ -42,12 +38,6 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     get_config_server_ = this->create_service<std_srvs::srv::Trigger>(
         get_config_service,
         std::bind(&DVLA50Publisher::get_config, this, std::placeholders::_1, std::placeholders::_2));
-    turn_off_server_ = this->create_service<std_srvs::srv::Trigger>(
-        turn_off_service,
-        std::bind(&DVLA50Publisher::turn_off, this, std::placeholders::_1, std::placeholders::_2));
-    turn_on_server_ = this->create_service<std_srvs::srv::Trigger>(
-        turn_on_service,
-        std::bind(&DVLA50Publisher::turn_on, this, std::placeholders::_1, std::placeholders::_2));
     toggle_server_ = this->create_service<std_srvs::srv::SetBool>(
         toggle_service,
         std::bind(&DVLA50Publisher::toggle, this, std::placeholders::_1, std::placeholders::_2));
@@ -241,22 +231,6 @@ void DVLA50Publisher::toggle(const std::shared_ptr<std_srvs::srv::SetBool::Reque
     bool success = send_dvl_command(req->data ? "\"set_config\",\"parameters\":{\"acoustic_enabled\":true}" : "\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
     res->success = success;
     res->message = success ? (req->data ? "DVL turned on" : "DVL turned off") : "Failed to toggle DVL";
-}
-
-void DVLA50Publisher::turn_off(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
-{
-    (void)req;
-    bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
-    res->success = success;
-    res->message = success ? "turn_off successful" : "turn_off failed";
-}
-
-void DVLA50Publisher::turn_on(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
-{
-    (void)req;
-    bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":true}");
-    res->success = success;
-    res->message = success ? "turn_on successful" : "turn_on failed";
 }
 
 void DVLA50Publisher::get_config(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)

@@ -25,8 +25,6 @@ private:
     void reset_dead_reckoning(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
     void calibrate_gyro(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
     void get_config(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
-    void turn_off(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
-    void turn_on(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
     void toggle(const std::shared_ptr<std_srvs::srv::SetBool::Request> req, std::shared_ptr<std_srvs::srv::SetBool::Response> res);
 
     rclcpp::TimerBase::SharedPtr timer_;
@@ -34,11 +32,9 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_dead_reckoning_server_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr calibrate_gyro_server_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr get_config_server_;
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr turn_off_server_;
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr turn_on_server_;
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr toggle_server_;
 
-    string reset_dead_reckoning_service, calibrate_gyro_service, get_config_service, turn_off_service, turn_on_service, toggle_service;
+    string reset_dead_reckoning_service, calibrate_gyro_service, get_config_service, toggle_service;
 
     int sock_;
     string tcp_ip_;
