@@ -19,11 +19,12 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
 
     tcp_ip_ = this->get_parameter("tcp_ip").as_string();
     tcp_port_ = this->get_parameter("tcp_port").as_int();
-    dvl_raw_topic = this->get_parameter("dvl_raw_topic").as_string();
-    reset_dead_reckoning_service = this->get_parameter("reset_dead_reckoning").as_string();
-    calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
-    get_config_service = this->get_parameter("get_config").as_string();
-    toggle_service = this->get_parameter("toggle").as_string();
+    
+    const string dvl_raw_topic = this->get_parameter("dvl_raw_topic").as_string();
+    const string reset_dead_reckoning_service = this->get_parameter("reset_dead_reckoning").as_string();
+    const string calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
+    const string get_config_service = this->get_parameter("get_config").as_string();
+    const string toggle_service = this->get_parameter("toggle").as_string();
 
     // Create publisher for raw JSON data
     pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);

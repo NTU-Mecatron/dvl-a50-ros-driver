@@ -34,13 +34,10 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr get_config_server_;
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr toggle_server_;
 
-    string reset_dead_reckoning_service, calibrate_gyro_service, get_config_service, toggle_service;
-
     int sock_;
     string tcp_ip_;
     int tcp_port_;
     string old_json_;
-    string dvl_raw_topic;
 };
 
 #endif
