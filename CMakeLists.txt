@@ -54,6 +54,7 @@ install(TARGETS publisher dvl_republisher
 # 4. Install launch files
 install(DIRECTORY
   launch
+  params
   DESTINATION share/${PROJECT_NAME}/
 )
 
