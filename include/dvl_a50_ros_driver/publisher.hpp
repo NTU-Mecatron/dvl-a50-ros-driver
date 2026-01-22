@@ -9,7 +9,9 @@
 #include <std_srvs/srv/trigger.hpp>
 #include <std_srvs/srv/set_bool.hpp>
 
-using namespace std;
+using String = std_msgs::msg::String;
+using Trigger = std_srvs::srv::Trigger;
+using SetBool = std_srvs::srv::SetBool;
 
 class DVLA50Publisher : public rclcpp::Node
 {
@@ -20,24 +22,24 @@ public:
 private:
     void timer_callback();
     void connect();
-    string getData();
-    bool send_dvl_command(string cmd);
-    void reset_dead_reckoning(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
-    void calibrate_gyro(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
-    void get_config(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
-    void toggle(const std::shared_ptr<std_srvs::srv::SetBool::Request> req, std::shared_ptr<std_srvs::srv::SetBool::Response> res);
+    std::string getData();
+    bool send_dvl_command(std::string cmd);
+    void reset_dead_reckoning(const std::shared_ptr<Trigger::Request> req, std::shared_ptr<Trigger::Response> res);
+    void calibrate_gyro(const std::shared_ptr<Trigger::Request> req, std::shared_ptr<Trigger::Response> res);
+    void get_config(const std::shared_ptr<Trigger::Request> req, std::shared_ptr<Trigger::Response> res);
+    void toggle(const std::shared_ptr<SetBool::Request> req, std::shared_ptr<SetBool::Response> res);
 
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_raw_;
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_dead_reckoning_server_;
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr calibrate_gyro_server_;
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr get_config_server_;
-    rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr toggle_server_;
+    rclcpp::Publisher<String>::SharedPtr pub_raw_;
+    rclcpp::Service<Trigger>::SharedPtr reset_dead_reckoning_server_;
+    rclcpp::Service<Trigger>::SharedPtr calibrate_gyro_server_;
+    rclcpp::Service<Trigger>::SharedPtr get_config_server_;
+    rclcpp::Service<SetBool>::SharedPtr toggle_server_;
 
     int sock_;
-    string tcp_ip_;
+    std::string tcp_ip_;
     int tcp_port_;
-    string old_json_;
+    std::string old_json_;
 };
 
 #endif

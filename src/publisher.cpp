@@ -4,42 +4,40 @@
 #include <iomanip>
 
 using json = nlohmann::json;
-using String = std_msgs::msg::String;
 
 DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
 {
     // Declare and get parameters
-    this->declare_parameter<string>("tcp_ip", "192.168.194.95");
+    this->declare_parameter<std::string>("tcp_ip", "192.168.194.95");
     this->declare_parameter<int>("tcp_port", 16171);
-    this->declare_parameter<string>("dvl_raw_topic", "dvl/raw_data");
-    this->declare_parameter<string>("reset_dead_reckoning", "dvl/reset_dead_reckoning");
-    this->declare_parameter<string>("calibrate_gyro", "dvl/calibrate_gyro");
-    this->declare_parameter<string>("get_config", "dvl/get_config");
-    this->declare_parameter<string>("toggle", "dvl/toggle");
+    this->declare_parameter<std::string>("dvl_raw_topic", "dvl/raw_data");
+    this->declare_parameter<std::string>("reset_dead_reckoning", "dvl/reset_dead_reckoning");
+    this->declare_parameter<std::string>("calibrate_gyro", "dvl/calibrate_gyro");
+    this->declare_parameter<std::string>("get_config", "dvl/get_config");
+    this->declare_parameter<std::string>("toggle", "dvl/toggle");
 
     tcp_ip_ = this->get_parameter("tcp_ip").as_string();
     tcp_port_ = this->get_parameter("tcp_port").as_int();
     
-    const string dvl_raw_topic = this->get_parameter("dvl_raw_topic").as_string();
-    const string reset_dead_reckoning_service = this->get_parameter("reset_dead_reckoning").as_string();
-    const string calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
-    const string get_config_service = this->get_parameter("get_config").as_string();
-    const string toggle_service = this->get_parameter("toggle").as_string();
-
+    const std::string dvl_raw_topic = this->get_parameter("dvl_raw_topic").as_string();
+    const std::string reset_dead_reckoning_service = this->get_parameter("reset_dead_reckoning").as_string();
+    const std::string calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
+    const std::string get_config_service = this->get_parameter("get_config").as_string();
+    const std::string toggle_service = this->get_parameter("toggle").as_string();
     // Create publisher for raw JSON data
     pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
 
     // Create services
-    reset_dead_reckoning_server_ = this->create_service<std_srvs::srv::Trigger>(
+    reset_dead_reckoning_server_ = this->create_service<Trigger>(
         reset_dead_reckoning_service,
         std::bind(&DVLA50Publisher::reset_dead_reckoning, this, std::placeholders::_1, std::placeholders::_2));
-    calibrate_gyro_server_ = this->create_service<std_srvs::srv::Trigger>(
+    calibrate_gyro_server_ = this->create_service<Trigger>(
         calibrate_gyro_service,
         std::bind(&DVLA50Publisher::calibrate_gyro, this, std::placeholders::_1, std::placeholders::_2));
-    get_config_server_ = this->create_service<std_srvs::srv::Trigger>(
+    get_config_server_ = this->create_service<Trigger>(
         get_config_service,
         std::bind(&DVLA50Publisher::get_config, this, std::placeholders::_1, std::placeholders::_2));
-    toggle_server_ = this->create_service<std_srvs::srv::SetBool>(
+    toggle_server_ = this->create_service<SetBool>(
         toggle_service,
         std::bind(&DVLA50Publisher::toggle, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -48,8 +46,8 @@ DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
     connect();
 
     // Reset dead reckoning on startup
-    auto starting_req = std::make_shared<std_srvs::srv::Trigger::Request>();
-    auto starting_res = std::make_shared<std_srvs::srv::Trigger::Response>();
+    auto starting_req = std::make_shared<Trigger::Request>();
+    auto starting_res = std::make_shared<Trigger::Response>();
     reset_dead_reckoning(starting_req, starting_res);
 
     // Create timer for periodic data collection (30 Hz)
@@ -108,12 +106,12 @@ void DVLA50Publisher::connect()
     setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
 }
 
-string DVLA50Publisher::getData()
+std::string DVLA50Publisher::getData()
 {
-    string raw_data;
-    vector<char> buffer(1024);
+    std::string raw_data;
+    std::vector<char> buffer(1024);
 
-    while (raw_data.find('\n') == string::npos)
+    while (raw_data.find('\n') == std::string::npos)
     {
         ssize_t n = recv(sock_, buffer.data(), buffer.size(), 0);
         if (n < 1)
@@ -131,7 +129,7 @@ string DVLA50Publisher::getData()
     size_t pos = raw_data.find('\n');
 
     // check if we received the full json string
-    if (pos != string::npos)
+    if (pos != std::string::npos)
     {
         old_json_ = raw_data.substr(pos + 1);
         raw_data = raw_data.substr(0, pos);
@@ -140,9 +138,9 @@ string DVLA50Publisher::getData()
     return raw_data;
 }
 
-bool DVLA50Publisher::send_dvl_command(string cmd)
+bool DVLA50Publisher::send_dvl_command(std::string cmd)
 {
-    string full_cmd{"{\"command\": " + cmd + "}"};
+    std::string full_cmd{"{\"command\": " + cmd + "}"};
     RCLCPP_WARN(this->get_logger(), "sending %s", full_cmd.c_str());
     send(sock_, full_cmd.c_str(), full_cmd.size(), 0);
 
@@ -151,12 +149,12 @@ bool DVLA50Publisher::send_dvl_command(string cmd)
 
     while (retry_count < max_retries)
     {
-        string _dr_status_response = getData();
+        std::string _dr_status_response = getData();
         try
         {
             json resp = json::parse(_dr_status_response);
-            string response_to = resp["response_to"];
-            if (resp["type"] == "response" && (cmd.find(response_to) != string::npos))
+            std::string response_to = resp["response_to"];
+            if (resp["type"] == "response" && (cmd.find(response_to) != std::string::npos))
             {
                 if (resp["success"])
                 {
@@ -183,7 +181,7 @@ bool DVLA50Publisher::send_dvl_command(string cmd)
                 else
                 {
                     RCLCPP_ERROR(this->get_logger(), "Dead reckoning reset failed: %s",
-                                 resp["error_message"].get<string>().c_str());
+                                 resp["error_message"].get<std::string>().c_str());
                     return false;
                 }
             }
@@ -210,7 +208,7 @@ bool DVLA50Publisher::send_dvl_command(string cmd)
     return false;
 }
 
-void DVLA50Publisher::reset_dead_reckoning(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
+void DVLA50Publisher::reset_dead_reckoning(const std::shared_ptr<Trigger::Request> req, std::shared_ptr<Trigger::Response> res)
 {
     (void)req;
     bool success = send_dvl_command("\"reset_dead_reckoning\"");
@@ -218,7 +216,7 @@ void DVLA50Publisher::reset_dead_reckoning(const std::shared_ptr<std_srvs::srv::
     res->message = success ? "Dead reckoning reset successful" : "Dead reckoning reset failed";
 }
 
-void DVLA50Publisher::calibrate_gyro(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
+void DVLA50Publisher::calibrate_gyro(const std::shared_ptr<Trigger::Request> req, std::shared_ptr<Trigger::Response> res)
 {
     (void)req;
     RCLCPP_WARN(this->get_logger(), "Temporary disconnection when calibrating gyro, expect NULL return");
@@ -227,14 +225,14 @@ void DVLA50Publisher::calibrate_gyro(const std::shared_ptr<std_srvs::srv::Trigge
     res->message = success ? "Calibrate gyro successful" : "Calibrate gyro failed";
 }
 
-void DVLA50Publisher::toggle(const std::shared_ptr<std_srvs::srv::SetBool::Request> req, std::shared_ptr<std_srvs::srv::SetBool::Response> res)
+void DVLA50Publisher::toggle(const std::shared_ptr<SetBool::Request> req, std::shared_ptr<SetBool::Response> res)
 {
     bool success = send_dvl_command(req->data ? "\"set_config\",\"parameters\":{\"acoustic_enabled\":true}" : "\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
     res->success = success;
     res->message = success ? (req->data ? "DVL turned on" : "DVL turned off") : "Failed to toggle DVL";
 }
 
-void DVLA50Publisher::get_config(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
+void DVLA50Publisher::get_config(const std::shared_ptr<Trigger::Request> req, std::shared_ptr<Trigger::Response> res)
 {
     (void)req;
     bool success = send_dvl_command("\"get_config\"");
@@ -244,7 +242,7 @@ void DVLA50Publisher::get_config(const std::shared_ptr<std_srvs::srv::Trigger::R
 
 void DVLA50Publisher::timer_callback()
 {
-    string raw_data = getData();
+    std::string raw_data = getData();
 
     // Publish raw JSON data for downstream processing
     String raw_msg;

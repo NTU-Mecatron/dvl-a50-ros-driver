@@ -1,8 +1,5 @@
 #include "dvl_a50_ros_driver/dvl_republisher.hpp"
 
-using json = nlohmann::json;
-using TwistWithCovarianceStamped = geometry_msgs::msg::TwistWithCovarianceStamped;
-
 namespace dvl_a50_ros_driver
 {
 
@@ -47,7 +44,7 @@ void dvl_republisher::setup_pub_sub()
     dvl_twist_pub_ = this->create_publisher<TwistWithCovarianceStamped>(
         twist_output_topic, 10);
     
-    dvl_raw_sub_ = this->create_subscription<std_msgs::msg::String>(
+    dvl_raw_sub_ = this->create_subscription<String>(
         raw_input_topic, 10,
         std::bind(&dvl_republisher::raw_dvl_callback, this, std::placeholders::_1));
     
@@ -74,7 +71,7 @@ void dvl_republisher::initialize_twist_template()
     twist_template_.twist.covariance[35] = UNKNOWN_ANGULAR_VARIANCE;  // rot_z
 }
 
-void dvl_republisher::raw_dvl_callback(const std_msgs::msg::String::SharedPtr msg)
+void dvl_republisher::raw_dvl_callback(const String::SharedPtr msg)
 {
     try
     {
