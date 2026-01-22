@@ -4,7 +4,7 @@
 # =============================================================================
 # Publisher Node - Handles TCP/IP connection to DVL hardware
 # =============================================================================
-/dvl/publisher:
+/**/dvl/raw_data_publisher:
   ros__parameters:
     # Network Configuration
     tcp_ip: '192.168.2.95'        # DVL TCP/IP address
@@ -22,7 +22,7 @@
 # =============================================================================
 # DVL Republisher Node - Converts raw DVL data to TwistWithCovarianceStamped
 # =============================================================================
-/dvl/dvl_republisher:
+/**/dvl/twist_republisher:
   ros__parameters:
     # Topic Configuration
     dvl_raw_topic: 'raw_data'                     # Input: raw DVL JSON data

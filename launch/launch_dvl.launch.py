@@ -25,7 +25,7 @@ def generate_launch_description():
     dvl_node = Node(
         package='dvl_a50_ros_driver',
         executable='publisher',
-        name='publisher',
+        name='raw_data_publisher',
         namespace='dvl',
         output='screen',
         parameters=[params_file],
@@ -36,7 +36,7 @@ def generate_launch_description():
     dvl_repub_node = Node(
         package='dvl_a50_ros_driver',
         executable='dvl_republisher',
-        name='dvl_republisher',
+        name='twist_republisher',
         namespace='dvl',
         output='screen',
         parameters=[params_file],
