@@ -1,54 +1,82 @@
-# Water Linked DVL A50 - ROS1 Package
+# Water Linked DVL A50 - ROS2 Driver
 
-> :warning: This library is for ROS1 and is no longer maintained. ROS2 drivers are available by third parties by searching [github](https://github.com/search?q=ros2%20dvl-a50&type=repositories)
-
-A ROS package for the Water Linked DVL A50. Along with a subscribing client for easy visualization of the communication through ROS.
+A ROS2 C++ package for the Water Linked DVL A50 Doppler Velocity Log. Provides TCP/IP communication with the DVL hardware and converts raw JSON data to standard ROS2 TwistWithCovarianceStamped messages.
 
 Water Linked A50 is, by far, the world's smallest commercially available Doppler Velocity Log. With the record-breaking 5 cm min altitude measurability, the A50 is extremely useful for working with tools close to the seabed.
 
 ![Image of Water Linked A50](img/DSC04478_1600_web.jpg?raw=true "Water Linked DVL A50")
 
 ### Prerequisites
-The package has been tested with ROS Noetic, Ubuntu 20.04. While we recommend the C++ version, the Python version of the code has been adjusted and tested to work with all Python >=3.6. For C++, install the following dependencies:
-```bash
-sudo apt-get install nlohmann-json3-dev
-```
+- **ROS2 Humble** on Ubuntu 22.04
+- Dependencies:
+  ```bash
+  sudo apt-get install nlohmann-json3-dev
+  ```
 
 ## Installation
-Assuming you created your catkin workspace at the default location. And have git installed. The below steps should work:
+Clone into your ROS2 workspace source directory and build:
 ```bash
-cd ~/catkin_ws/src
-git clone -b master git@github.com:NTU-Mecatron/dvl-a50-ros-driver.git
-cd ~/catkin_ws
-catkin_make
+cd ~/auv_ws/src
+git clone git@github.com:NTU-Mecatron/dvl-a50-ros-driver.git dvl_a50_ros_driver
+cd ~/auv_ws
+colcon build --packages-select dvl_a50_ros_driver
 ```
 
-### Usage
-Find the DVLs IP address. Once that's done, the package and it's components can be run by following these steps:
+## Configuration
+Edit `params/dvl_params.yaml` to configure DVL settings:
+- **Network**: TCP/IP address and port
+- **Topics**: Raw data and output topic names
+- **Frame ID**: TF frame identifier for DVL sensor
+- **Covariance**: Choose between DVL's native covariance, FOM-based, or custom values
 
-**To run the publisher that listens to the TCP port and sends the data to ROS**
+## Usage
+
+### Launch DVL Driver
 ```bash
-roslaunch dvl_a50_ros_driver launch_dvl.launch
+ros2 launch dvl_a50_ros_driver launch_dvl.launch.py
 ```
 
-The default IP address is 192.168.194.95 which is always made available by the a50 be default. To replace IP of the DVL, specify the argument "ip":
+This launches two nodes:
+1. **publisher** - Connects to DVL hardware via TCP/IP, publishes raw JSON data
+2. **dvl_republisher** - Converts raw JSON to TwistWithCovarianceStamped messages
 
-**To run the publisher that listens to the TCP port, displays the raw data in the DVL and sends the data to ROS**
+### Verify Operation
+Check published topics:
 ```bash
-rosrun dvl_a50_ros_driver publisher.py _ip:=192.168.2.95 _do_log_raw_data:=true
+ros2 topic list
+ros2 topic echo /dvl/twist_stamped
 ```
 
-**To run a subscriber node that listens to the DVL topic. Helpful for debugging or checking if everything is running as it should be. Choose between "subscriber_gui.py" and "subscriber.py". The GUI makes reading data visually much easier. While the non-GUI version makes it easier to read through the code to see how you can implement code yourself.**
+Call DVL services:
 ```bash
-rosrun dvl_a50_ros_driver subscriber_gui.py
+ros2 service call /dvl/reset_dead_reckoning std_srvs/srv/Trigger
+ros2 service call /dvl/toggle std_srvs/srv/SetBool "{data: true}"
 ```
-![GUI Subscriber](img/a50_gui.png?raw=true "Interface as seen when running the GUI version of the subscriber")
 
-## Documentation
-The node publishes data to the topics: "*dvl/json_data*" and "*dvl/data*".
-* *dvl/json_data*: uses a simple String formated topic that publishes the raw json data coming from the DVL.
-* *dvl/data*: Uses a custom message type that structures the parsed data following our protocol. Read more about the protocol here: [DVL Protocol](https://waterlinked.github.io/docs/dvl/dvl-protocol/)
+## Architecture
 
-![rqt_graph of the package in action](img/a50_graph.png?raw=true "Graph of the package's node-to-node structure")
+### Nodes
 
-*The graph illustrates the topics and nodes created when the package is run.*
+**Publisher Node** (`/dvl/publisher`)
+- Maintains TCP/IP connection to DVL hardware
+- Publishes raw JSON data on `/dvl/raw_data`
+- Provides services: `reset_dead_reckoning`, `calibrate_gyro`, `get_config`, `toggle`
+
+**DVL Republisher Node** (`/dvl/dvl_republisher`)
+- Subscribes to raw JSON data
+- Converts to ROS2 standard messages with proper frame conversions (FRD → FLU)
+- Publishes TwistWithCovarianceStamped on `/dvl/twist_stamped`
+- Handles covariance management with three priority modes
+
+### Topics
+- `/dvl/raw_data` (std_msgs/String): Raw JSON from DVL
+- `/dvl/twist_stamped` (geometry_msgs/TwistWithCovarianceStamped): Velocity with covariance
+
+### Services
+- `/dvl/reset_dead_reckoning` (std_srvs/Trigger): Reset DVL dead reckoning
+- `/dvl/calibrate_gyro` (std_srvs/Trigger): Calibrate gyroscope
+- `/dvl/get_config` (std_srvs/Trigger): Retrieve DVL configuration
+- `/dvl/toggle` (std_srvs/SetBool): Enable/disable acoustic measurements
+
+## Protocol Reference
+For DVL protocol details, see: [DVL Protocol Documentation](https://waterlinked.github.io/docs/dvl/dvl-protocol/)

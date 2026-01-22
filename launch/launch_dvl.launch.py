@@ -2,29 +2,48 @@
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
+import os
 
 def generate_launch_description():
-    params = {
-        'tcp_ip': '192.168.2.95',
-        'tcp_port': 16171,
-        'dvl_topic': '/dvl/velocity',
-        'dead_reckoning_topic': '/dvl/dead_reckoning',
-        'reset_dead_reckoning': '/dvl/reset_dead_reckoning',
-        'calibrate_gyro': '/dvl/calibrate_gyro',
-        'get_config': '/dvl/get_config',
-        'turn_off': '/dvl/turn_off',
-        'turn_on': '/dvl/turn_on',
-        'toggle': '/dvl/toggle',
-        'log_raw_data': False,
-        'dvl_frame_id': 'auv/dvl_link'
-    }
+    """
+    Launch file for DVL A50 ROS2 driver.
+    
+    Launches two nodes:
+    1. publisher: Communicates with DVL hardware via TCP/IP
+    2. dvl_republisher: Converts raw DVL data to ROS2 standard messages
+    
+    Parameters are loaded from dvl_params.yaml.
+    """
+    ld = LaunchDescription()
 
+    # Get the path to the parameter file
+    pkg_share = get_package_share_directory('dvl_a50_ros_driver')
+    params_file = os.path.join(pkg_share, 'params', 'dvl_params.yaml')
+
+    # DVL Publisher Node - Hardware interface
     dvl_node = Node(
         package='dvl_a50_ros_driver',
         executable='publisher',
-        name='dvl',
+        name='raw_data_publisher',
+        namespace='dvl',
         output='screen',
-        parameters=[params]
+        parameters=[params_file],
+        emulate_tty=True,
     )
 
-    return LaunchDescription([dvl_node])
+    # DVL Republisher Node - Data conversion
+    dvl_repub_node = Node(
+        package='dvl_a50_ros_driver',
+        executable='dvl_republisher',
+        name='twist_republisher',
+        namespace='dvl',
+        output='screen',
+        parameters=[params_file],
+        emulate_tty=True,
+    )
+
+    ld.add_action(dvl_node)
+    ld.add_action(dvl_repub_node)
+
+    return ld

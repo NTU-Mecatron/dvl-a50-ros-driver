@@ -1,0 +1,46 @@
+# DVL A50 ROS2 Driver Parameters
+# Organized by node for clarity and maintainability
+
+# =============================================================================
+# Publisher Node - Handles TCP/IP connection to DVL hardware
+# =============================================================================
+/**/dvl/raw_data_publisher:
+  ros__parameters:
+    # Network Configuration
+    tcp_ip: '192.168.2.95'        # DVL TCP/IP address
+    tcp_port: 16171                # DVL TCP port (default: 16171)
+    
+    # Topic Names
+    dvl_raw_topic: 'raw_data'      # Topic for publishing raw DVL JSON data
+    
+    # Service Names
+    reset_dead_reckoning: 'reset_dead_reckoning'  # Service to reset DVL dead reckoning
+    calibrate_gyro: 'calibrate_gyro'              # Service to calibrate DVL gyroscope
+    get_config: 'get_config'                      # Service to retrieve DVL configuration
+    toggle: 'toggle'                              # Service to enable/disable acoustic measurements
+
+# =============================================================================
+# DVL Republisher Node - Converts raw DVL data to TwistWithCovarianceStamped
+# =============================================================================
+/**/dvl/twist_republisher:
+  ros__parameters:
+    # Topic Configuration
+    dvl_raw_topic: 'raw_data'                     # Input: raw DVL JSON data
+    output_twist_stamped_topic: 'twist_stamped'   # Output: TwistWithCovarianceStamped
+    
+    # Frame Configuration
+    dvl_frame_id: 'dvl_link'       # TF frame ID for DVL sensor
+    
+    # Covariance Configuration (priority order: DVL > FOM > custom)
+    # Option 1: Use DVL's built-in covariance matrix (recommended)
+    use_original_covariance: true
+    
+    # Option 2: Compute covariance from Figure of Merit (FOM)
+    # FOM represents standard deviation in m/s, variance = FOM²
+    use_fom_to_compute_covariance: false
+    
+    # Option 3: Custom covariance values (used when both above are false)
+    # Units: m²/s² (variance in velocity)
+    linear_vel_var_x: 0.01         # X-axis velocity variance
+    linear_vel_var_y: 0.01         # Y-axis velocity variance
+    linear_vel_var_z: 0.01         # Z-axis velocity variance
