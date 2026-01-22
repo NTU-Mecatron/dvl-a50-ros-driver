@@ -2,48 +2,45 @@
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
+import os
 
 def generate_launch_description():
+    """
+    Launch file for DVL A50 ROS2 driver.
+    
+    Launches two nodes:
+    1. publisher: Communicates with DVL hardware via TCP/IP
+    2. dvl_republisher: Converts raw DVL data to ROS2 standard messages
+    
+    Parameters are loaded from dvl_params.yaml.
+    """
     ld = LaunchDescription()
 
-    params = {
-        'tcp_ip': '192.168.2.95',
-        'tcp_port': 16171,
-        'dvl_raw_topic': 'raw_data',
-        'dvl_topic': 'original_data',
-        'dead_reckoning_topic': 'dead_reckoning',
-        'reset_dead_reckoning': 'reset_dead_reckoning',
-        'output_twist_stamped_topic': 'twist_stamped',
-        'calibrate_gyro': 'calibrate_gyro',
-        'get_config': 'get_config',
-        'turn_off': 'turn_off',
-        'turn_on': 'turn_on',
-        'toggle': 'toggle',
-        'log_raw_data': False,
-        'dvl_frame_id': 'dvl_link',
-        'use_original_covariance': True,        # Use DVL covariance matrix
-        'use_fom_to_compute_covariance': False, # OR Use FOM to compute covariance
-        'linear_vel_var_x': 0.01,               # OR Custom X-axis velocity variance (m²/s²)
-        'linear_vel_var_y': 0.01,               #    Custom Y-axis velocity variance (m²/s²)
-        'linear_vel_var_z': 0.01,               #    Custom Z-axis velocity variance (m²/s²)
-    }
+    # Get the path to the parameter file
+    pkg_share = get_package_share_directory('dvl_a50_ros_driver')
+    params_file = os.path.join(pkg_share, 'params', 'dvl_params.yaml')
 
+    # DVL Publisher Node - Hardware interface
     dvl_node = Node(
         package='dvl_a50_ros_driver',
         executable='publisher',
-        name='publisher',
+        name='raw_data_publisher',
         namespace='dvl',
         output='screen',
-        parameters=[params]
+        parameters=[params_file],
+        emulate_tty=True,
     )
 
+    # DVL Republisher Node - Data conversion
     dvl_repub_node = Node(
         package='dvl_a50_ros_driver',
         executable='dvl_republisher',
-        name='dvl_republisher',
+        name='twist_republisher',
         namespace='dvl',
         output='screen',
-        parameters=[params]
+        parameters=[params_file],
+        emulate_tty=True,
     )
 
     ld.add_action(dvl_node)
