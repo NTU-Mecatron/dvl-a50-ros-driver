@@ -34,6 +34,7 @@
     # Covariance Configuration (priority order: DVL > FOM > custom)
     # Option 1: Use DVL's built-in covariance matrix (recommended)
     use_original_covariance: true
+    covariance_multiplier: 1.0     # Scale DVL covariance values
     
     # Option 2: Compute covariance from Figure of Merit (FOM)
     # FOM represents standard deviation in m/s, variance = FOM²
