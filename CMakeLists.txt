@@ -34,18 +34,6 @@ ament_target_dependencies(publisher_component
 target_link_libraries(publisher_component nlohmann_json::nlohmann_json)
 rclcpp_components_register_nodes(publisher_component "DVLA50Publisher")
 
-# --- Publisher standalone executable ---
-add_executable(publisher src/publisher_node.cpp)
-target_include_directories(publisher PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-
-ament_target_dependencies(publisher
-  rclcpp
-)
-
-target_link_libraries(publisher publisher_component)
-
 # --- dvl_republisher component library ---
 add_library(dvl_republisher_component SHARED src/dvl_republisher.cpp)
 target_include_directories(dvl_republisher_component PUBLIC
@@ -63,29 +51,11 @@ ament_target_dependencies(dvl_republisher_component
 target_link_libraries(dvl_republisher_component nlohmann_json::nlohmann_json)
 rclcpp_components_register_nodes(dvl_republisher_component "dvl_republisher")
 
-# --- dvl_republisher standalone executable ---
-add_executable(dvl_republisher src/dvl_republisher_node.cpp)
-target_include_directories(dvl_republisher PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-
-ament_target_dependencies(dvl_republisher
-  rclcpp
-)
-
-target_link_libraries(dvl_republisher dvl_republisher_component)
-
 # 3. Install C++ Targets
 install(TARGETS
   publisher_component
   dvl_republisher_component
   DESTINATION lib
-)
-
-install(TARGETS
-  publisher
-  dvl_republisher
-  DESTINATION lib/${PROJECT_NAME}
 )
 
 # 4. Install launch files
