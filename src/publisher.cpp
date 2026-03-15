@@ -6,7 +6,8 @@
 
 using json = nlohmann::json;
 
-DVLA50Publisher::DVLA50Publisher() : Node("dvl_a50_publisher"), sock_(-1)
+DVLA50Publisher::DVLA50Publisher(const rclcpp::NodeOptions & options)
+: Node("dvl_a50_publisher", options), sock_(-1)
 {
   // Declare and get parameters
   this->declare_parameter<std::string>("tcp_ip", "192.168.194.95");
@@ -262,22 +263,5 @@ void DVLA50Publisher::timer_callback()
   pub_raw_->publish(raw_msg);
 }
 
-int main(int argc, char** argv)
-{
-  rclcpp::init(argc, argv);
-  auto publisher = std::make_shared<DVLA50Publisher>();
-
-  try
-  {
-    rclcpp::spin(publisher);
-  }
-  catch (const std::exception& e)
-  {
-    RCLCPP_ERROR(publisher->get_logger(), "Exception: %s", e.what());
-    rclcpp::shutdown();
-    return 1;
-  }
-
-  rclcpp::shutdown();
-  return 0;
-}
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(DVLA50Publisher)

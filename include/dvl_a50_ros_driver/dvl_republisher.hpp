@@ -15,7 +15,7 @@ using TwistWithCovarianceStamped = geometry_msgs::msg::TwistWithCovarianceStampe
 class dvl_republisher : public rclcpp::Node
 {
 public:
-  dvl_republisher();
+  explicit dvl_republisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
 private:
   void raw_dvl_callback(const String::SharedPtr msg);

@@ -1,6 +1,7 @@
 #include "dvl_a50_ros_driver/dvl_republisher.hpp"
 
-dvl_republisher::dvl_republisher() : Node("dvl_republisher")
+dvl_republisher::dvl_republisher(const rclcpp::NodeOptions & options)
+: Node("dvl_republisher", options)
 {
   RCLCPP_INFO(this->get_logger(), "dvl_republisher has been started");
 
@@ -151,10 +152,5 @@ void dvl_republisher::compute_velocity_covariances(double& variance_x, double& v
   }
 }
 
-int main(int argc, char* argv[])
-{
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<dvl_republisher>());
-  rclcpp::shutdown();
-  return 0;
-}
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(dvl_republisher)

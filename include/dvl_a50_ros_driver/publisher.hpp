@@ -18,7 +18,7 @@ using SetBool = std_srvs::srv::SetBool;
 class DVLA50Publisher : public rclcpp::Node
 {
 public:
-  DVLA50Publisher();
+  explicit DVLA50Publisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
   ~DVLA50Publisher();
 
 private:
