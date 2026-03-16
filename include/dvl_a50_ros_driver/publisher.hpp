@@ -11,15 +11,18 @@
 #include <std_srvs/srv/set_bool.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
+namespace dvl
+{
+
 using String = std_msgs::msg::String;
 using Trigger = std_srvs::srv::Trigger;
 using SetBool = std_srvs::srv::SetBool;
 
-class DVLA50Publisher : public rclcpp::Node
+class RawJsonPublisher : public rclcpp::Node
 {
 public:
-  explicit DVLA50Publisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
-  ~DVLA50Publisher();
+  explicit RawJsonPublisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+  ~RawJsonPublisher();
 
 private:
   void timer_callback();
@@ -46,5 +49,7 @@ private:
   int tcp_port_;
   std::string old_json_;
 };
+
+}  // namespace dvl
 
 #endif

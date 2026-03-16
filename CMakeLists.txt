@@ -32,7 +32,7 @@ ament_target_dependencies(publisher_component
 
 # Link external JSON library
 target_link_libraries(publisher_component nlohmann_json::nlohmann_json)
-rclcpp_components_register_nodes(publisher_component "DVLA50Publisher")
+rclcpp_components_register_nodes(publisher_component "dvl::RawJsonPublisher")
 
 # --- dvl_republisher component library ---
 add_library(dvl_republisher_component SHARED src/dvl_republisher.cpp)
@@ -49,7 +49,7 @@ ament_target_dependencies(dvl_republisher_component
 
 # Link external JSON library for parsing raw DVL data
 target_link_libraries(dvl_republisher_component nlohmann_json::nlohmann_json)
-rclcpp_components_register_nodes(dvl_republisher_component "dvl_republisher")
+rclcpp_components_register_nodes(dvl_republisher_component "dvl::TwistPublisher")
 
 # 3. Install C++ Targets
 install(TARGETS

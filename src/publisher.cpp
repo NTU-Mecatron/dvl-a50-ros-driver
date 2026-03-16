@@ -6,7 +6,10 @@
 
 using json = nlohmann::json;
 
-DVLA50Publisher::DVLA50Publisher(const rclcpp::NodeOptions & options)
+namespace dvl
+{
+
+RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
 : Node("dvl_a50_publisher", options), sock_(-1)
 {
   // Declare and get parameters
@@ -32,17 +35,17 @@ DVLA50Publisher::DVLA50Publisher(const rclcpp::NodeOptions & options)
 
   // Create services
   reset_dead_reckoning_server_ = this->create_service<Trigger>(
-      reset_dead_reckoning_service, std::bind(&DVLA50Publisher::reset_dead_reckoning, this,
+      reset_dead_reckoning_service, std::bind(&RawJsonPublisher::reset_dead_reckoning, this,
                                               std::placeholders::_1, std::placeholders::_2));
   calibrate_gyro_server_ = this->create_service<Trigger>(
-      calibrate_gyro_service, std::bind(&DVLA50Publisher::calibrate_gyro, this,
+      calibrate_gyro_service, std::bind(&RawJsonPublisher::calibrate_gyro, this,
                                         std::placeholders::_1, std::placeholders::_2));
   get_config_server_ = this->create_service<Trigger>(
       get_config_service,
-      std::bind(&DVLA50Publisher::get_config, this, std::placeholders::_1, std::placeholders::_2));
+      std::bind(&RawJsonPublisher::get_config, this, std::placeholders::_1, std::placeholders::_2));
   toggle_server_ = this->create_service<SetBool>(
       toggle_service,
-      std::bind(&DVLA50Publisher::toggle, this, std::placeholders::_1, std::placeholders::_2));
+      std::bind(&RawJsonPublisher::toggle, this, std::placeholders::_1, std::placeholders::_2));
 
   // Set up the socket connection
   RCLCPP_INFO(this->get_logger(), "Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
@@ -55,10 +58,10 @@ DVLA50Publisher::DVLA50Publisher(const rclcpp::NodeOptions & options)
 
   // Create timer for periodic data collection (30 Hz)
   timer_ = this->create_wall_timer(std::chrono::milliseconds(33),  // ~30 Hz
-                                   std::bind(&DVLA50Publisher::timer_callback, this));
+                                   std::bind(&RawJsonPublisher::timer_callback, this));
 }
 
-DVLA50Publisher::~DVLA50Publisher()
+RawJsonPublisher::~RawJsonPublisher()
 {
   if (sock_ >= 0)
   {
@@ -66,7 +69,7 @@ DVLA50Publisher::~DVLA50Publisher()
   }
 }
 
-void DVLA50Publisher::connect()
+void RawJsonPublisher::connect()
 {
   if (sock_ >= 0)
   {
@@ -108,7 +111,7 @@ void DVLA50Publisher::connect()
   setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, (const char*) &tv, sizeof tv);
 }
 
-std::string DVLA50Publisher::getData()
+std::string RawJsonPublisher::getData()
 {
   std::string raw_data;
   std::vector<char> buffer(1024);
@@ -140,7 +143,7 @@ std::string DVLA50Publisher::getData()
   return raw_data;
 }
 
-bool DVLA50Publisher::send_dvl_command(std::string cmd)
+bool RawJsonPublisher::send_dvl_command(std::string cmd)
 {
   std::string full_cmd{"{\"command\": " + cmd + "}"};
   RCLCPP_WARN(this->get_logger(), "sending %s", full_cmd.c_str());
@@ -213,7 +216,7 @@ bool DVLA50Publisher::send_dvl_command(std::string cmd)
   return false;
 }
 
-void DVLA50Publisher::reset_dead_reckoning(const std::shared_ptr<Trigger::Request> req,
+void RawJsonPublisher::reset_dead_reckoning(const std::shared_ptr<Trigger::Request> req,
                                            std::shared_ptr<Trigger::Response> res)
 {
   (void) req;
@@ -222,7 +225,7 @@ void DVLA50Publisher::reset_dead_reckoning(const std::shared_ptr<Trigger::Reques
   res->message = success ? "Dead reckoning reset successful" : "Dead reckoning reset failed";
 }
 
-void DVLA50Publisher::calibrate_gyro(const std::shared_ptr<Trigger::Request> req,
+void RawJsonPublisher::calibrate_gyro(const std::shared_ptr<Trigger::Request> req,
                                      std::shared_ptr<Trigger::Response> res)
 {
   (void) req;
@@ -233,7 +236,7 @@ void DVLA50Publisher::calibrate_gyro(const std::shared_ptr<Trigger::Request> req
   res->message = success ? "Calibrate gyro successful" : "Calibrate gyro failed";
 }
 
-void DVLA50Publisher::toggle(const std::shared_ptr<SetBool::Request> req,
+void RawJsonPublisher::toggle(const std::shared_ptr<SetBool::Request> req,
                              std::shared_ptr<SetBool::Response> res)
 {
   bool success =
@@ -244,7 +247,7 @@ void DVLA50Publisher::toggle(const std::shared_ptr<SetBool::Request> req,
       success ? (req->data ? "DVL turned on" : "DVL turned off") : "Failed to toggle DVL";
 }
 
-void DVLA50Publisher::get_config(const std::shared_ptr<Trigger::Request> req,
+void RawJsonPublisher::get_config(const std::shared_ptr<Trigger::Request> req,
                                  std::shared_ptr<Trigger::Response> res)
 {
   (void) req;
@@ -253,7 +256,7 @@ void DVLA50Publisher::get_config(const std::shared_ptr<Trigger::Request> req,
   res->message = success ? "Get config successful" : "Get config failed";
 }
 
-void DVLA50Publisher::timer_callback()
+void RawJsonPublisher::timer_callback()
 {
   std::string raw_data = getData();
 
@@ -263,5 +266,7 @@ void DVLA50Publisher::timer_callback()
   pub_raw_->publish(raw_msg);
 }
 
+}  // namespace dvl
+
 #include <rclcpp_components/register_node_macro.hpp>
-RCLCPP_COMPONENTS_REGISTER_NODE(DVLA50Publisher)
+RCLCPP_COMPONENTS_REGISTER_NODE(dvl::RawJsonPublisher)

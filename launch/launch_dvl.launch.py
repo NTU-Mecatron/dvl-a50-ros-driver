@@ -13,8 +13,8 @@ def generate_launch_description():
     Launch file for DVL A50 ROS2 driver.
     
     Launches two composable nodes in one process:
-    1. DVLA50Publisher: Communicates with DVL hardware via TCP/IP
-    2. dvl_republisher: Converts raw DVL data to ROS2 standard messages
+    1. dvl::RawJsonPublisher: Communicates with DVL hardware via TCP/IP
+    2. dvl::TwistPublisher: Converts raw DVL data to ROS2 standard messages
     
     Parameters are loaded from dvl_params.yaml.
     """
@@ -34,7 +34,7 @@ def generate_launch_description():
     # DVL Publisher component - Hardware interface
     dvl_component = ComposableNode(
         package='dvl_a50_ros_driver',
-        plugin='DVLA50Publisher',
+        plugin='dvl::RawJsonPublisher',
         name='raw_data_publisher',
         parameters=[params_file],
         extra_arguments=[ipc_arg],
@@ -43,7 +43,7 @@ def generate_launch_description():
     # DVL Republisher component - Data conversion
     dvl_repub_component = ComposableNode(
         package='dvl_a50_ros_driver',
-        plugin='dvl_republisher',
+        plugin='dvl::TwistPublisher',
         name='twist_republisher',
         parameters=[params_file],
         extra_arguments=[ipc_arg],

@@ -8,14 +8,17 @@
 
 #include <nlohmann/json.hpp>
 
+namespace dvl
+{
+
 using json = nlohmann::json;
 using String = std_msgs::msg::String;
 using TwistWithCovarianceStamped = geometry_msgs::msg::TwistWithCovarianceStamped;
 
-class dvl_republisher : public rclcpp::Node
+class TwistPublisher : public rclcpp::Node
 {
 public:
-  explicit dvl_republisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+  explicit TwistPublisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
 private:
   void raw_dvl_callback(const String::SharedPtr msg);
@@ -42,5 +45,7 @@ private:
   double linear_vel_var_y_;
   double linear_vel_var_z_;
 };
+
+}  // namespace dvl
 
 #endif
