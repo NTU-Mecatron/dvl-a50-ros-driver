@@ -17,6 +17,7 @@ void dvl_republisher::load_parameters()
   this->declare_parameter<std::string>("dvl_frame_id", "dvl_link");
   this->declare_parameter<bool>("use_original_covariance", true);
   this->declare_parameter<bool>("use_fom_to_compute_covariance", false);
+  this->declare_parameter<double>("covariance_multiplier", 1.0);
   this->declare_parameter<double>("linear_vel_var_x", 0.01);
   this->declare_parameter<double>("linear_vel_var_y", 0.01);
   this->declare_parameter<double>("linear_vel_var_z", 0.01);
@@ -25,6 +26,7 @@ void dvl_republisher::load_parameters()
   dvl_frame_id_ = this->get_parameter("dvl_frame_id").as_string();
   use_original_covariance_ = this->get_parameter("use_original_covariance").as_bool();
   use_fom_to_compute_covariance_ = this->get_parameter("use_fom_to_compute_covariance").as_bool();
+  covariance_multiplier_ = this->get_parameter("covariance_multiplier").as_double();
   linear_vel_var_x_ = this->get_parameter("linear_vel_var_x").as_double();
   linear_vel_var_y_ = this->get_parameter("linear_vel_var_y").as_double();
   linear_vel_var_z_ = this->get_parameter("linear_vel_var_z").as_double();
@@ -129,10 +131,10 @@ void dvl_republisher::compute_velocity_covariances(double& variance_x, double& v
   if (use_original_covariance_ && data.contains("covariance") && data["covariance"].is_array() &&
       data["covariance"].size() == 3)
   {
-    // Extract diagonal from DVL's 3x3 covariance matrix
-    variance_x = data["covariance"][0][0];
-    variance_y = data["covariance"][1][1];
-    variance_z = data["covariance"][2][2];
+    // Extract diagonal from DVL's 3x3 covariance matrix and scale
+    variance_x = static_cast<double>(data["covariance"][0][0]) * covariance_multiplier_;
+    variance_y = static_cast<double>(data["covariance"][1][1]) * covariance_multiplier_;
+    variance_z = static_cast<double>(data["covariance"][2][2]) * covariance_multiplier_;
   }
   else if (use_fom_to_compute_covariance_)
   {

@@ -37,6 +37,7 @@ private:
   TwistWithCovarianceStamped twist_template_;
   bool use_original_covariance_;
   bool use_fom_to_compute_covariance_;
+  double covariance_multiplier_;
   double linear_vel_var_x_;
   double linear_vel_var_y_;
   double linear_vel_var_z_;
