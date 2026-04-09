@@ -2,11 +2,10 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-from ament_index_python.packages import get_package_share_directory
-import os
 
 def generate_launch_description():
     """
@@ -26,8 +25,8 @@ def generate_launch_description():
     ns = LaunchConfiguration('namespace')
 
     # Get the path to the parameter file
-    pkg_share = get_package_share_directory('dvl_a50_ros_driver')
-    params_file = os.path.join(pkg_share, 'params', 'dvl_params.yaml')
+    params_dir = PathJoinSubstitution([FindPackageShare('dvl_a50_ros_driver'), 'params'])
+    params_file = PathJoinSubstitution([params_dir, 'dvl_params.yaml'])
 
     ipc_arg = {'use_intra_process_comms': True}
 
@@ -36,6 +35,7 @@ def generate_launch_description():
         package='dvl_a50_ros_driver',
         plugin='dvl::RawJsonPublisher',
         name='raw_data_publisher',
+        namespace=ns,
         parameters=[params_file],
         extra_arguments=[ipc_arg],
     )
@@ -45,6 +45,7 @@ def generate_launch_description():
         package='dvl_a50_ros_driver',
         plugin='dvl::TwistPublisher',
         name='twist_republisher',
+        namespace=ns,
         parameters=[params_file],
         extra_arguments=[ipc_arg],
     )
