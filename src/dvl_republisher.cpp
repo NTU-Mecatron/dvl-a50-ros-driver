@@ -71,7 +71,7 @@ void TwistPublisher::initialize_twist_template()
   twist_template_.twist.covariance[35] = UNKNOWN_ANGULAR_VARIANCE;  // rot_z
 }
 
-void TwistPublisher::raw_dvl_callback(const String::SharedPtr msg)
+void TwistPublisher::raw_dvl_callback(const String::ConstSharedPtr msg)
 {
   try
   {

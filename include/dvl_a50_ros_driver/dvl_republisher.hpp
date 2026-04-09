@@ -21,7 +21,7 @@ public:
   explicit TwistPublisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
 private:
-  void raw_dvl_callback(const String::SharedPtr msg);
+  void raw_dvl_callback(const String::ConstSharedPtr msg);
 
   // Initialization helpers
   void load_parameters();
