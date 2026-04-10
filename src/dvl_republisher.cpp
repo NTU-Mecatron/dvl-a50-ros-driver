@@ -1,6 +1,10 @@
 #include "dvl_a50_ros_driver/dvl_republisher.hpp"
 
-dvl_republisher::dvl_republisher() : Node("dvl_republisher")
+namespace dvl
+{
+
+TwistPublisher::TwistPublisher(const rclcpp::NodeOptions & options)
+: Node("dvl_republisher", options)
 {
   RCLCPP_INFO(this->get_logger(), "dvl_republisher has been started");
 
@@ -9,7 +13,7 @@ dvl_republisher::dvl_republisher() : Node("dvl_republisher")
   initialize_twist_template();
 }
 
-void dvl_republisher::load_parameters()
+void TwistPublisher::load_parameters()
 {
   // Declare parameters with defaults
   this->declare_parameter<std::string>("dvl_raw_topic", "dvl/raw_data");
@@ -32,7 +36,7 @@ void dvl_republisher::load_parameters()
   linear_vel_var_z_ = this->get_parameter("linear_vel_var_z").as_double();
 }
 
-void dvl_republisher::setup_pub_sub()
+void TwistPublisher::setup_pub_sub()
 {
   const auto raw_input_topic = this->get_parameter("dvl_raw_topic").as_string();
 
@@ -42,13 +46,13 @@ void dvl_republisher::setup_pub_sub()
 
   dvl_raw_sub_ = this->create_subscription<String>(
       raw_input_topic, 10,
-      std::bind(&dvl_republisher::raw_dvl_callback, this, std::placeholders::_1));
+      std::bind(&TwistPublisher::raw_dvl_callback, this, std::placeholders::_1));
 
   RCLCPP_INFO(this->get_logger(), "Subscribed to %s, publishing twist to %s",
               raw_input_topic.c_str(), twist_output_topic.c_str());
 }
 
-void dvl_republisher::initialize_twist_template()
+void TwistPublisher::initialize_twist_template()
 {
   twist_template_.header.frame_id = dvl_frame_id_;
 
@@ -67,7 +71,7 @@ void dvl_republisher::initialize_twist_template()
   twist_template_.twist.covariance[35] = UNKNOWN_ANGULAR_VARIANCE;  // rot_z
 }
 
-void dvl_republisher::raw_dvl_callback(const String::SharedPtr msg)
+void TwistPublisher::raw_dvl_callback(const String::ConstSharedPtr msg)
 {
   try
   {
@@ -104,7 +108,7 @@ void dvl_republisher::raw_dvl_callback(const String::SharedPtr msg)
   }
 }
 
-bool dvl_republisher::is_velocity_valid(const json& data)
+bool TwistPublisher::is_velocity_valid(const json& data)
 {
   bool velocity_valid = data["velocity_valid"];
   if (!velocity_valid)
@@ -115,7 +119,7 @@ bool dvl_republisher::is_velocity_valid(const json& data)
   return velocity_valid;
 }
 
-void dvl_republisher::populate_linear_velocities(TwistWithCovarianceStamped& twist_msg,
+void TwistPublisher::populate_linear_velocities(TwistWithCovarianceStamped& twist_msg,
                                                  const json& data) const
 {
   // DVL measures linear velocity in body frame - convert from FRD to FLU
@@ -124,7 +128,7 @@ void dvl_republisher::populate_linear_velocities(TwistWithCovarianceStamped& twi
   twist_msg.twist.twist.linear.z = -static_cast<double>(data["vz"]);
 }
 
-void dvl_republisher::compute_velocity_covariances(double& variance_x, double& variance_y,
+void TwistPublisher::compute_velocity_covariances(double& variance_x, double& variance_y,
                                                    double& variance_z, const json& data) const
 {
   // Priority: 1) DVL covariance matrix, 2) FOM, 3) User parameters
@@ -151,10 +155,7 @@ void dvl_republisher::compute_velocity_covariances(double& variance_x, double& v
   }
 }
 
-int main(int argc, char* argv[])
-{
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<dvl_republisher>());
-  rclcpp::shutdown();
-  return 0;
-}
+}  // namespace dvl
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(dvl::TwistPublisher)
