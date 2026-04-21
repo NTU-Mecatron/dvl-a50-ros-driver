@@ -3,6 +3,7 @@
 
 #include <dvl_a50_ros_driver/publisher.hpp>
 #include <nlohmann/json.hpp>
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 using json = nlohmann::json;
 
@@ -10,7 +11,7 @@ namespace dvl
 {
 
 RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
-: Node("dvl_a50_publisher", options), sock_(-1)
+: rclcpp_lifecycle::LifecycleNode("dvl_a50_publisher", options), sock_(-1)
 {
   // Declare and get parameters
   this->declare_parameter<std::string>("tcp_ip", "192.168.194.95");
@@ -20,7 +21,10 @@ RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
   this->declare_parameter<std::string>("calibrate_gyro", "dvl/calibrate_gyro");
   this->declare_parameter<std::string>("get_config", "dvl/get_config");
   this->declare_parameter<std::string>("toggle", "dvl/toggle");
+}
 
+using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
   tcp_ip_ = this->get_parameter("tcp_ip").as_string();
   tcp_port_ = this->get_parameter("tcp_port").as_int();
 
@@ -30,6 +34,7 @@ RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
   const std::string calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
   const std::string get_config_service = this->get_parameter("get_config").as_string();
   const std::string toggle_service = this->get_parameter("toggle").as_string();
+
   // Create publisher for raw JSON data
   pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
 
@@ -57,9 +62,51 @@ RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
   reset_dead_reckoning(starting_req, starting_res);
 
   // Create timer for periodic data collection (30 Hz)
+  // timer_ = this->create_wall_timer(std::chrono::milliseconds(33),  // ~30 Hz
+  //                                  std::bind(&RawJsonPublisher::timer_callback, this));
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
+  pub_raw_->on_activate();
+
+  // Create timer for periodic data collection (30 Hz)
   timer_ = this->create_wall_timer(std::chrono::milliseconds(33),  // ~30 Hz
                                    std::bind(&RawJsonPublisher::timer_callback, this));
+
+  RCUTILS_LOG_INFO_NAMED(get_name(), "on_activate() is called.");
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
+
+CallbackReturn RawJsonPublisher::on_deactivate(const rclcpp_lifecycle::State &) {
+  if (timer_) {
+    timer_->cancel();
+    timer_.reset();
+  }
+  
+  pub_raw_->on_deactivate();
+
+  RCUTILS_LOG_INFO_NAMED(get_name(), "on_deactivate() is called.");
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+CallbackReturn RawJsonPublisher::on_cleanup(const rclcpp_lifecycle::State &) {
+  timer_.reset();
+  pub_raw_.reset();
+
+  RCUTILS_LOG_INFO_NAMED(get_name(), "on_cleanup() is called.");
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+CallbackReturn RawJsonPublisher::on_shutdown(const rclcpp_lifecycle::State &) {
+  timer_.reset();
+  pub_raw_.reset();
+  RawJsonPublisher::~RawJsonPublisher();
+
+  RCUTILS_LOG_INFO_NAMED(get_name(), "on_shutdown() is called.");
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
 
 RawJsonPublisher::~RawJsonPublisher()
 {

@@ -8,6 +8,7 @@ endif()
 # 1. Find Dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -24,6 +25,7 @@ target_include_directories(publisher_component PUBLIC
 
 ament_target_dependencies(publisher_component
   rclcpp
+  rclcpp_lifecycle
   rclcpp_components
   std_msgs
   std_srvs
@@ -42,6 +44,7 @@ target_include_directories(dvl_republisher_component PUBLIC
 
 ament_target_dependencies(dvl_republisher_component
   rclcpp
+  rclcpp_lifecycle
   rclcpp_components
   std_msgs
   geometry_msgs
