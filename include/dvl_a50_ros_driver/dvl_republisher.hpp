@@ -8,6 +8,13 @@
 
 #include <nlohmann/json.hpp>
 
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include <rclcpp_lifecycle/lifecycle_publisher.hpp>
+#include <lifecycle_msgs/msg/state.hpp>
+#include <lifecycle_msgs/msg/transition.hpp>
+#include <lifecycle_msgs/srv/change_state.hpp>
+#include <lifecycle_msgs/srv/get_state.hpp>
+
 namespace dvl
 {
 
@@ -15,17 +22,26 @@ using json = nlohmann::json;
 using String = std_msgs::msg::String;
 using TwistWithCovarianceStamped = geometry_msgs::msg::TwistWithCovarianceStamped;
 
-class TwistPublisher : public rclcpp::Node
+class TwistPublisher : public rclcpp_lifecycle::LifecycleNode
 {
 public:
   explicit TwistPublisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+
+  using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+  CallbackReturn on_configure (const rclcpp_lifecycle::State &) override;
+  CallbackReturn on_activate (const rclcpp_lifecycle::State &) override;
+  CallbackReturn on_deactivate (const rclcpp_lifecycle::State &) override;
+  CallbackReturn on_shutdown (const rclcpp_lifecycle::State &) override;
+  CallbackReturn on_cleanup (const rclcpp_lifecycle::State &) override;
 
 private:
   void raw_dvl_callback(const String::ConstSharedPtr msg);
 
   // Initialization helpers
   void load_parameters();
-  void setup_pub_sub();
+  // void setup_pub_sub();
+  void setup_pub();
+  void setup_sub();
   void initialize_twist_template();
 
   // Message processing helpers
@@ -34,7 +50,7 @@ private:
   void compute_velocity_covariances(double& variance_x, double& variance_y, double& variance_z,
                                     const json& data) const;
   rclcpp::Subscription<String>::SharedPtr dvl_raw_sub_;
-  rclcpp::Publisher<TwistWithCovarianceStamped>::SharedPtr dvl_twist_pub_;
+  rclcpp_lifecycle::LifecyclePublisher<TwistWithCovarianceStamped>::SharedPtr dvl_twist_pub_;
 
   std::string dvl_frame_id_;
   TwistWithCovarianceStamped twist_template_;

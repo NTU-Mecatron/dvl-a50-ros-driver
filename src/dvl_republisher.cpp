@@ -4,13 +4,62 @@ namespace dvl
 {
 
 TwistPublisher::TwistPublisher(const rclcpp::NodeOptions & options)
-: Node("dvl_republisher", options)
+: rclcpp_lifecycle::LifecycleNode("dvl_republisher", options)
 {
   RCLCPP_INFO(this->get_logger(), "dvl_republisher has been started");
 
   load_parameters();
-  setup_pub_sub();
+}
+
+using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+CallbackReturn TwistPublisher::on_configure(const rclcpp_lifecycle::State &) 
+{
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Configure transition is called.");
+  // Get parameter values
+  dvl_frame_id_ = this->get_parameter("dvl_frame_id").as_string();
+  use_original_covariance_ = this->get_parameter("use_original_covariance").as_bool();
+  use_fom_to_compute_covariance_ = this->get_parameter("use_fom_to_compute_covariance").as_bool();
+  covariance_multiplier_ = this->get_parameter("covariance_multiplier").as_double();
+  linear_vel_var_x_ = this->get_parameter("linear_vel_var_x").as_double();
+  linear_vel_var_y_ = this->get_parameter("linear_vel_var_y").as_double();
+  linear_vel_var_z_ = this->get_parameter("linear_vel_var_z").as_double();
+  
+  setup_pub();
   initialize_twist_template();
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+CallbackReturn TwistPublisher::on_activate(const rclcpp_lifecycle::State &) 
+{
+  setup_sub();
+  dvl_twist_pub_->on_activate();
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Activate transition is called.");
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+CallbackReturn TwistPublisher::on_deactivate(const rclcpp_lifecycle::State &) 
+{
+  dvl_twist_pub_->on_deactivate();
+  dvl_raw_sub_.reset();
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Deactivate transition is called.");
+
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+CallbackReturn TwistPublisher::on_cleanup(const rclcpp_lifecycle::State &) 
+{
+  dvl_twist_pub_.reset();
+  dvl_raw_sub_.reset();
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Cleanup transition is called.");
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+CallbackReturn TwistPublisher::on_shutdown(const rclcpp_lifecycle::State &) 
+{
+  dvl_twist_pub_.reset();
+  dvl_raw_sub_.reset();
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Shutdown transition is called.");
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 void TwistPublisher::load_parameters()
@@ -25,31 +74,28 @@ void TwistPublisher::load_parameters()
   this->declare_parameter<double>("linear_vel_var_x", 0.01);
   this->declare_parameter<double>("linear_vel_var_y", 0.01);
   this->declare_parameter<double>("linear_vel_var_z", 0.01);
-
-  // Get parameter values
-  dvl_frame_id_ = this->get_parameter("dvl_frame_id").as_string();
-  use_original_covariance_ = this->get_parameter("use_original_covariance").as_bool();
-  use_fom_to_compute_covariance_ = this->get_parameter("use_fom_to_compute_covariance").as_bool();
-  covariance_multiplier_ = this->get_parameter("covariance_multiplier").as_double();
-  linear_vel_var_x_ = this->get_parameter("linear_vel_var_x").as_double();
-  linear_vel_var_y_ = this->get_parameter("linear_vel_var_y").as_double();
-  linear_vel_var_z_ = this->get_parameter("linear_vel_var_z").as_double();
 }
 
-void TwistPublisher::setup_pub_sub()
+void TwistPublisher::setup_sub()
 {
   const auto raw_input_topic = this->get_parameter("dvl_raw_topic").as_string();
-
-  const auto twist_output_topic = this->get_parameter("output_twist_stamped_topic").as_string();
-
-  dvl_twist_pub_ = this->create_publisher<TwistWithCovarianceStamped>(twist_output_topic, 10);
 
   dvl_raw_sub_ = this->create_subscription<String>(
       raw_input_topic, 10,
       std::bind(&TwistPublisher::raw_dvl_callback, this, std::placeholders::_1));
 
-  RCLCPP_INFO(this->get_logger(), "Subscribed to %s, publishing twist to %s",
-              raw_input_topic.c_str(), twist_output_topic.c_str());
+  RCLCPP_INFO(this->get_logger(), "Subscribed to %s", 
+              raw_input_topic.c_str());
+}
+
+void TwistPublisher::setup_pub()
+{
+  const auto twist_output_topic = this->get_parameter("output_twist_stamped_topic").as_string();
+  
+  dvl_twist_pub_ = this->create_publisher<TwistWithCovarianceStamped>(twist_output_topic, 10);
+  
+  RCLCPP_INFO(this->get_logger(), "Publishing twist to %s", 
+              twist_output_topic.c_str());
 }
 
 void TwistPublisher::initialize_twist_template()

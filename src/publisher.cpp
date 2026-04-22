@@ -54,6 +54,7 @@ CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
 
   // Set up the socket connection
   RCLCPP_INFO(this->get_logger(), "Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Configure transition is called.");
   connect();
 
   // Reset dead reckoning on startup
@@ -61,9 +62,6 @@ CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
   auto starting_res = std::make_shared<Trigger::Response>();
   reset_dead_reckoning(starting_req, starting_res);
 
-  // Create timer for periodic data collection (30 Hz)
-  // timer_ = this->create_wall_timer(std::chrono::milliseconds(33),  // ~30 Hz
-  //                                  std::bind(&RawJsonPublisher::timer_callback, this));
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -74,7 +72,7 @@ CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
   timer_ = this->create_wall_timer(std::chrono::milliseconds(33),  // ~30 Hz
                                    std::bind(&RawJsonPublisher::timer_callback, this));
 
-  RCUTILS_LOG_INFO_NAMED(get_name(), "on_activate() is called.");
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Activate transition is called.");
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -86,24 +84,43 @@ CallbackReturn RawJsonPublisher::on_deactivate(const rclcpp_lifecycle::State &) 
   
   pub_raw_->on_deactivate();
 
-  RCUTILS_LOG_INFO_NAMED(get_name(), "on_deactivate() is called.");
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Deactivate transition is called.");
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 CallbackReturn RawJsonPublisher::on_cleanup(const rclcpp_lifecycle::State &) {
+  if (timer_) {
+    timer_->cancel();
+  }
   timer_.reset();
   pub_raw_.reset();
 
-  RCUTILS_LOG_INFO_NAMED(get_name(), "on_cleanup() is called.");
+  reset_dead_reckoning_server_.reset();
+  calibrate_gyro_server_.reset();
+  get_config_server_.reset();
+  toggle_server_.reset();
+
+  if (sock_ >= 0) { close(sock_); sock_ = -1; }
+
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Cleanup transition is called.");
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 CallbackReturn RawJsonPublisher::on_shutdown(const rclcpp_lifecycle::State &) {
+  if (timer_) {
+    timer_->cancel();
+  }
   timer_.reset();
   pub_raw_.reset();
-  RawJsonPublisher::~RawJsonPublisher();
 
-  RCUTILS_LOG_INFO_NAMED(get_name(), "on_shutdown() is called.");
+  reset_dead_reckoning_server_.reset();
+  calibrate_gyro_server_.reset();
+  get_config_server_.reset();
+  toggle_server_.reset();
+
+  if (sock_ >= 0) { close(sock_); sock_ = -1; }
+
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Shutdown transition is called.");
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
