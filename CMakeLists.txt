@@ -15,6 +15,7 @@ find_package(std_srvs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
+
 # 2. Build C++ Nodes
 
 # --- Publisher component library ---
@@ -44,7 +45,6 @@ target_include_directories(dvl_republisher_component PUBLIC
 
 ament_target_dependencies(dvl_republisher_component
   rclcpp
-  rclcpp_lifecycle
   rclcpp_components
   std_msgs
   geometry_msgs

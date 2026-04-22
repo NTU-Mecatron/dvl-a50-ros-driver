@@ -20,7 +20,6 @@
 
 namespace dvl
 {
-
 using String = std_msgs::msg::String;
 using Trigger = std_srvs::srv::Trigger;
 using SetBool = std_srvs::srv::SetBool;
@@ -49,14 +48,12 @@ private:
                       std::shared_ptr<Trigger::Response> res);
   void get_config(const std::shared_ptr<Trigger::Request> req,
                   std::shared_ptr<Trigger::Response> res);
-  void toggle(const std::shared_ptr<SetBool::Request> req, std::shared_ptr<SetBool::Response> res);
 
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp_lifecycle::LifecyclePublisher<String>::SharedPtr pub_raw_;
   rclcpp::Service<Trigger>::SharedPtr reset_dead_reckoning_server_;
   rclcpp::Service<Trigger>::SharedPtr calibrate_gyro_server_;
   rclcpp::Service<Trigger>::SharedPtr get_config_server_;
-  rclcpp::Service<SetBool>::SharedPtr toggle_server_;
 
   int sock_;
   std::string tcp_ip_;

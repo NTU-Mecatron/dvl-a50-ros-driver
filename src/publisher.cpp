@@ -20,23 +20,32 @@ RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
   this->declare_parameter<std::string>("reset_dead_reckoning", "dvl/reset_dead_reckoning");
   this->declare_parameter<std::string>("calibrate_gyro", "dvl/calibrate_gyro");
   this->declare_parameter<std::string>("get_config", "dvl/get_config");
-  this->declare_parameter<std::string>("toggle", "dvl/toggle");
 }
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
+  // Close the communication upon inactive state
+  if (sock_ >= 0) { close(sock_); sock_ = -1; }
+
   tcp_ip_ = this->get_parameter("tcp_ip").as_string();
   tcp_port_ = this->get_parameter("tcp_port").as_int();
 
   const std::string dvl_raw_topic = this->get_parameter("dvl_raw_topic").as_string();
+  
+  // Create publisher for raw JSON data
+  pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
+
+  RCUTILS_LOG_INFO_NAMED(get_name(), "Configure transition is called.");
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
+  pub_raw_->on_activate();
+
   const std::string reset_dead_reckoning_service =
       this->get_parameter("reset_dead_reckoning").as_string();
   const std::string calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
   const std::string get_config_service = this->get_parameter("get_config").as_string();
-  const std::string toggle_service = this->get_parameter("toggle").as_string();
-
-  // Create publisher for raw JSON data
-  pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
 
   // Create services
   reset_dead_reckoning_server_ = this->create_service<Trigger>(
@@ -48,13 +57,11 @@ CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
   get_config_server_ = this->create_service<Trigger>(
       get_config_service,
       std::bind(&RawJsonPublisher::get_config, this, std::placeholders::_1, std::placeholders::_2));
-  toggle_server_ = this->create_service<SetBool>(
-      toggle_service,
-      std::bind(&RawJsonPublisher::toggle, this, std::placeholders::_1, std::placeholders::_2));
 
   // Set up the socket connection
   RCLCPP_INFO(this->get_logger(), "Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
-  RCUTILS_LOG_INFO_NAMED(get_name(), "Configure transition is called.");
+  
+  // Open the communication during the active state only
   connect();
 
   // Reset dead reckoning on startup
@@ -62,30 +69,31 @@ CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
   auto starting_res = std::make_shared<Trigger::Response>();
   reset_dead_reckoning(starting_req, starting_res);
 
-  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
-}
-
-CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
-  pub_raw_->on_activate();
-
   // Create timer for periodic data collection (30 Hz)
-  timer_ = this->create_wall_timer(std::chrono::milliseconds(33),  // ~30 Hz
+  timer_ = this->create_timer(std::chrono::milliseconds(33),  // ~30 Hz
                                    std::bind(&RawJsonPublisher::timer_callback, this));
 
   RCUTILS_LOG_INFO_NAMED(get_name(), "Activate transition is called.");
-  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+  return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn RawJsonPublisher::on_deactivate(const rclcpp_lifecycle::State &) {
+  pub_raw_->on_deactivate();
+
   if (timer_) {
     timer_->cancel();
     timer_.reset();
   }
-  
-  pub_raw_->on_deactivate();
+
+  reset_dead_reckoning_server_.reset();
+  calibrate_gyro_server_.reset();
+  get_config_server_.reset();
+
+  // Close the communication upon inactive state
+  if (sock_ >= 0) { close(sock_); sock_ = -1; }
 
   RCUTILS_LOG_INFO_NAMED(get_name(), "Deactivate transition is called.");
-  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+  return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn RawJsonPublisher::on_cleanup(const rclcpp_lifecycle::State &) {
@@ -98,12 +106,12 @@ CallbackReturn RawJsonPublisher::on_cleanup(const rclcpp_lifecycle::State &) {
   reset_dead_reckoning_server_.reset();
   calibrate_gyro_server_.reset();
   get_config_server_.reset();
-  toggle_server_.reset();
 
+  // Close the communication upon Unconfigured state
   if (sock_ >= 0) { close(sock_); sock_ = -1; }
 
   RCUTILS_LOG_INFO_NAMED(get_name(), "Cleanup transition is called.");
-  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+  return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn RawJsonPublisher::on_shutdown(const rclcpp_lifecycle::State &) {
@@ -116,12 +124,12 @@ CallbackReturn RawJsonPublisher::on_shutdown(const rclcpp_lifecycle::State &) {
   reset_dead_reckoning_server_.reset();
   calibrate_gyro_server_.reset();
   get_config_server_.reset();
-  toggle_server_.reset();
 
+  // Close the communication upon Final state
   if (sock_ >= 0) { close(sock_); sock_ = -1; }
 
   RCUTILS_LOG_INFO_NAMED(get_name(), "Shutdown transition is called.");
-  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+  return CallbackReturn::SUCCESS;
 }
 
 
@@ -298,17 +306,6 @@ void RawJsonPublisher::calibrate_gyro(const std::shared_ptr<Trigger::Request> re
   bool success = send_dvl_command("\"calibrate_gyro\"");
   res->success = success;
   res->message = success ? "Calibrate gyro successful" : "Calibrate gyro failed";
-}
-
-void RawJsonPublisher::toggle(const std::shared_ptr<SetBool::Request> req,
-                             std::shared_ptr<SetBool::Response> res)
-{
-  bool success =
-      send_dvl_command(req->data ? "\"set_config\",\"parameters\":{\"acoustic_enabled\":true}"
-                                 : "\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
-  res->success = success;
-  res->message =
-      success ? (req->data ? "DVL turned on" : "DVL turned off") : "Failed to toggle DVL";
 }
 
 void RawJsonPublisher::get_config(const std::shared_ptr<Trigger::Request> req,
