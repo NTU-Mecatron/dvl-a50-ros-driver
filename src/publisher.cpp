@@ -48,7 +48,6 @@ CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
 
   // Set up the socket connection
   RCLCPP_INFO(this->get_logger(), "Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
-  RCLCPP_INFO(this->get_logger(), "Configure transition is called.");
   connect_socket();
 
   // Turning off upon Inactive
@@ -57,11 +56,6 @@ CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
   RCLCPP_INFO(this->get_logger(), message);
 
   if (!success) { return CallbackReturn::FAILURE; }
-
-  // Reset dead reckoning on startup
-  auto starting_req = std::make_shared<Trigger::Request>();
-  auto starting_res = std::make_shared<Trigger::Response>();
-  reset_dead_reckoning(starting_req, starting_res);
 
   return CallbackReturn::SUCCESS;
 }
@@ -79,8 +73,6 @@ CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
   // Create timer for periodic data collection (30 Hz)
   timer_ = this->create_timer(std::chrono::milliseconds(33),  // ~30 Hz
                                    std::bind(&RawJsonPublisher::timer_callback, this));
-
-  RCLCPP_INFO(this->get_logger(), "Activate transition is called.");
   return CallbackReturn::SUCCESS;
 }
 
@@ -98,8 +90,6 @@ CallbackReturn RawJsonPublisher::on_deactivate(const rclcpp_lifecycle::State &) 
   }
   
   pub_raw_->on_deactivate();
-
-  RCLCPP_INFO(this->get_logger(), "Deactivate transition is called.");
   return CallbackReturn::SUCCESS;
 }
 
@@ -122,8 +112,6 @@ CallbackReturn RawJsonPublisher::on_cleanup(const rclcpp_lifecycle::State &) {
   reset_dead_reckoning_server_.reset();
   calibrate_gyro_server_.reset();
   get_config_server_.reset();
-
-  RCLCPP_INFO(this->get_logger(), "Cleanup transition is called.");
   
   return CallbackReturn::SUCCESS;
 }
@@ -147,8 +135,6 @@ CallbackReturn RawJsonPublisher::on_shutdown(const rclcpp_lifecycle::State &) {
   get_config_server_.reset();
 
   close_socket();
-
-  RCLCPP_INFO(this->get_logger(), "Shutdown transition is called.");
   return CallbackReturn::SUCCESS;
 }
 
