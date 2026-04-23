@@ -240,37 +240,44 @@ bool RawJsonPublisher::send_dvl_command(std::string cmd)
     try
     {
       json resp = json::parse(_dr_status_response);
-      std::string response_to = resp["response_to"];
-      if (resp["type"] == "response" && (cmd.find(response_to) != std::string::npos))
+      if (resp["type"] == "response") 
       {
-        if (resp["success"])
+        std::string response_to = resp["response_to"];
+        if (cmd.find(response_to) != std::string::npos) 
         {
-          RCLCPP_WARN(this->get_logger(), "%s successful", cmd.c_str());
-          auto result{resp["result"]};
-          if (result == NULL)
+          if (resp["success"]) 
           {
-            RCLCPP_WARN(this->get_logger(), "No result, likely expected null type return");
+            RCLCPP_WARN(this->get_logger(), "%s successful", cmd.c_str());
+            auto result{resp["result"]};
+            if (result == NULL)
+            {
+              RCLCPP_WARN(this->get_logger(), "No result, likely expected null type return");
+            }
+            else
+            {
+              try
+              {
+                RCLCPP_WARN(this->get_logger(), "DVL Result:\n%s", result.dump(2).c_str());
+              }
+              catch (const std::exception& e)
+              {
+                RCLCPP_WARN(this->get_logger(), "Error in returning result: %s", e.what());
+              }
+            }
+            rclcpp::sleep_for(std::chrono::milliseconds(50));  // wait 50ms for values to zero out
+            return true;
           }
           else
           {
-            try
-            {
-              RCLCPP_WARN(this->get_logger(), "DVL Result:\n%s", result.dump(2).c_str());
-            }
-            catch (const std::exception& e)
-            {
-              RCLCPP_WARN(this->get_logger(), "Error in returning result: %s", e.what());
-            }
+            RCLCPP_ERROR(this->get_logger(), "Dead reckoning reset failed: %s",
+                        resp["error_message"].get<std::string>().c_str());
+            return false;
           }
-          rclcpp::sleep_for(std::chrono::milliseconds(50));  // wait 50ms for values to zero out
-          return true;
         }
-        else
-        {
-          RCLCPP_ERROR(this->get_logger(), "Dead reckoning reset failed: %s",
-                       resp["error_message"].get<std::string>().c_str());
-          return false;
-        }
+      }
+      else if (resp["type"] == "velocity" || resp["type"] == "position_local") 
+      {
+        return true;
       }
       else
       {
