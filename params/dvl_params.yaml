@@ -17,7 +17,6 @@
     reset_dead_reckoning: 'reset_dead_reckoning'  # Service to reset DVL dead reckoning
     calibrate_gyro: 'calibrate_gyro'              # Service to calibrate DVL gyroscope
     get_config: 'get_config'                      # Service to retrieve DVL configuration
-    # toggle: 'toggle'                              # Service to enable/disable acoustic measurements
 
 # =============================================================================
 # DVL Republisher Node - Converts raw DVL data to TwistWithCovarianceStamped

@@ -3,7 +3,7 @@
 
 #include <dvl_a50_ros_driver/publisher.hpp>
 #include <nlohmann/json.hpp>
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 using json = nlohmann::json;
 
@@ -22,30 +22,18 @@ RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
   this->declare_parameter<std::string>("get_config", "dvl/get_config");
 }
 
-using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
-  // Close the communication upon inactive state
-  if (sock_ >= 0) { close(sock_); sock_ = -1; }
-
   tcp_ip_ = this->get_parameter("tcp_ip").as_string();
   tcp_port_ = this->get_parameter("tcp_port").as_int();
 
   const std::string dvl_raw_topic = this->get_parameter("dvl_raw_topic").as_string();
-  
-  // Create publisher for raw JSON data
-  pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
-
-  RCUTILS_LOG_INFO_NAMED(get_name(), "Configure transition is called.");
-  return CallbackReturn::SUCCESS;
-}
-
-CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
-  pub_raw_->on_activate();
-
   const std::string reset_dead_reckoning_service =
       this->get_parameter("reset_dead_reckoning").as_string();
   const std::string calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
   const std::string get_config_service = this->get_parameter("get_config").as_string();
+
+  // Create publisher for raw JSON data
+  pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
 
   // Create services
   reset_dead_reckoning_server_ = this->create_service<Trigger>(
@@ -60,43 +48,71 @@ CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
 
   // Set up the socket connection
   RCLCPP_INFO(this->get_logger(), "Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
-  
-  // Open the communication during the active state only
-  connect();
+  RCLCPP_INFO(this->get_logger(), "Configure transition is called.");
+  connect_socket();
+
+  // Turning off upon Inactive
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
+  const char* message = success ? "DVL turned off" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
+
+  if (!success) { return CallbackReturn::FAILURE; }
 
   // Reset dead reckoning on startup
   auto starting_req = std::make_shared<Trigger::Request>();
   auto starting_res = std::make_shared<Trigger::Response>();
   reset_dead_reckoning(starting_req, starting_res);
 
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
+  pub_raw_->on_activate();
+
+  // Turning on during ACTIVE only
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":true}");
+  const char* message = success ? "DVL turned on" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
+
+  if (!success) { return CallbackReturn::FAILURE; }
+
   // Create timer for periodic data collection (30 Hz)
   timer_ = this->create_timer(std::chrono::milliseconds(33),  // ~30 Hz
                                    std::bind(&RawJsonPublisher::timer_callback, this));
 
-  RCUTILS_LOG_INFO_NAMED(get_name(), "Activate transition is called.");
+  RCLCPP_INFO(this->get_logger(), "Activate transition is called.");
   return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn RawJsonPublisher::on_deactivate(const rclcpp_lifecycle::State &) {
-  pub_raw_->on_deactivate();
+  // Turning off
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
+  const char* message = success ? "DVL turned off" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
+
+  if (!success) { return CallbackReturn::FAILURE; }
 
   if (timer_) {
     timer_->cancel();
     timer_.reset();
   }
+  
+  pub_raw_->on_deactivate();
 
-  reset_dead_reckoning_server_.reset();
-  calibrate_gyro_server_.reset();
-  get_config_server_.reset();
-
-  // Close the communication upon inactive state
-  if (sock_ >= 0) { close(sock_); sock_ = -1; }
-
-  RCUTILS_LOG_INFO_NAMED(get_name(), "Deactivate transition is called.");
+  RCLCPP_INFO(this->get_logger(), "Deactivate transition is called.");
   return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn RawJsonPublisher::on_cleanup(const rclcpp_lifecycle::State &) {
+  // Turning off
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
+  const char* message = success ? "DVL turned off" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
+
+  if (!success) { return CallbackReturn::FAILURE; }
+
+  close_socket();
+
   if (timer_) {
     timer_->cancel();
   }
@@ -107,14 +123,19 @@ CallbackReturn RawJsonPublisher::on_cleanup(const rclcpp_lifecycle::State &) {
   calibrate_gyro_server_.reset();
   get_config_server_.reset();
 
-  // Close the communication upon Unconfigured state
-  if (sock_ >= 0) { close(sock_); sock_ = -1; }
-
-  RCUTILS_LOG_INFO_NAMED(get_name(), "Cleanup transition is called.");
+  RCLCPP_INFO(this->get_logger(), "Cleanup transition is called.");
+  
   return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn RawJsonPublisher::on_shutdown(const rclcpp_lifecycle::State &) {
+  // Turning off
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
+  const char* message = success ? "DVL turned off" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
+
+  if (!success) { return CallbackReturn::FAILURE; }
+
   if (timer_) {
     timer_->cancel();
   }
@@ -125,10 +146,9 @@ CallbackReturn RawJsonPublisher::on_shutdown(const rclcpp_lifecycle::State &) {
   calibrate_gyro_server_.reset();
   get_config_server_.reset();
 
-  // Close the communication upon Final state
-  if (sock_ >= 0) { close(sock_); sock_ = -1; }
+  close_socket();
 
-  RCUTILS_LOG_INFO_NAMED(get_name(), "Shutdown transition is called.");
+  RCLCPP_INFO(this->get_logger(), "Shutdown transition is called.");
   return CallbackReturn::SUCCESS;
 }
 
@@ -141,7 +161,7 @@ RawJsonPublisher::~RawJsonPublisher()
   }
 }
 
-void RawJsonPublisher::connect()
+void RawJsonPublisher::connect_socket()
 {
   if (sock_ >= 0)
   {
@@ -153,7 +173,7 @@ void RawJsonPublisher::connect()
   {
     RCLCPP_ERROR(this->get_logger(), "Socket creation error");
     rclcpp::sleep_for(std::chrono::seconds(1));
-    connect();
+    connect_socket();
     return;
   }
 
@@ -165,7 +185,7 @@ void RawJsonPublisher::connect()
   {
     RCLCPP_WARN(this->get_logger(), "Invalid address");
     rclcpp::sleep_for(std::chrono::seconds(1));
-    connect();
+    connect_socket();
     return;
   }
 
@@ -173,7 +193,7 @@ void RawJsonPublisher::connect()
   {
     RCLCPP_WARN(this->get_logger(), "Connection failed");
     rclcpp::sleep_for(std::chrono::seconds(1));
-    connect();
+    connect_socket();
     return;
   }
 
@@ -181,6 +201,10 @@ void RawJsonPublisher::connect()
   tv.tv_sec = 1;
   tv.tv_usec = 0;
   setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, (const char*) &tv, sizeof tv);
+}
+
+void RawJsonPublisher::close_socket() {
+  if (sock_ >= 0) { close(sock_); sock_ = -1; }
 }
 
 std::string RawJsonPublisher::getData()
@@ -194,7 +218,7 @@ std::string RawJsonPublisher::getData()
     if (n < 1)
     {
       RCLCPP_WARN(this->get_logger(), "Connection lost, reconnecting...");
-      connect();
+      connect_socket();
       continue;
     }
     raw_data.append(buffer.data(), n);

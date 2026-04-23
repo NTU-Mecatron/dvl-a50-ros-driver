@@ -23,14 +23,15 @@ namespace dvl
 using String = std_msgs::msg::String;
 using Trigger = std_srvs::srv::Trigger;
 using SetBool = std_srvs::srv::SetBool;
+using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
 class RawJsonPublisher : public rclcpp_lifecycle::LifecycleNode
 {
 public:
+
   explicit RawJsonPublisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
   ~RawJsonPublisher();
 
-  using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
   CallbackReturn on_configure (const rclcpp_lifecycle::State &) override;
   CallbackReturn on_activate (const rclcpp_lifecycle::State &) override;
   CallbackReturn on_deactivate (const rclcpp_lifecycle::State &) override;
@@ -39,7 +40,9 @@ public:
 
 private:
   void timer_callback();
-  void connect();
+  void connect_socket();
+  void close_socket();
+
   std::string getData();
   bool send_dvl_command(std::string cmd);
   void reset_dead_reckoning(const std::shared_ptr<Trigger::Request> req,
