@@ -8,11 +8,13 @@ endif()
 # 1. Find Dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nlohmann_json REQUIRED)
+
 
 # 2. Build C++ Nodes
 
@@ -24,6 +26,7 @@ target_include_directories(publisher_component PUBLIC
 
 ament_target_dependencies(publisher_component
   rclcpp
+  rclcpp_lifecycle
   rclcpp_components
   std_msgs
   std_srvs

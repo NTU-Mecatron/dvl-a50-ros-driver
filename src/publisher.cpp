@@ -3,6 +3,7 @@
 
 #include <dvl_a50_ros_driver/publisher.hpp>
 #include <nlohmann/json.hpp>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 using json = nlohmann::json;
 
@@ -10,7 +11,7 @@ namespace dvl
 {
 
 RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
-: Node("dvl_a50_publisher", options), sock_(-1)
+: rclcpp_lifecycle::LifecycleNode("dvl_a50_publisher", options), sock_(-1)
 {
   // Declare and get parameters
   this->declare_parameter<std::string>("tcp_ip", "192.168.194.95");
@@ -19,8 +20,9 @@ RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
   this->declare_parameter<std::string>("reset_dead_reckoning", "dvl/reset_dead_reckoning");
   this->declare_parameter<std::string>("calibrate_gyro", "dvl/calibrate_gyro");
   this->declare_parameter<std::string>("get_config", "dvl/get_config");
-  this->declare_parameter<std::string>("toggle", "dvl/toggle");
+}
 
+CallbackReturn RawJsonPublisher::on_configure(const rclcpp_lifecycle::State &) {
   tcp_ip_ = this->get_parameter("tcp_ip").as_string();
   tcp_port_ = this->get_parameter("tcp_port").as_int();
 
@@ -29,7 +31,7 @@ RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
       this->get_parameter("reset_dead_reckoning").as_string();
   const std::string calibrate_gyro_service = this->get_parameter("calibrate_gyro").as_string();
   const std::string get_config_service = this->get_parameter("get_config").as_string();
-  const std::string toggle_service = this->get_parameter("toggle").as_string();
+
   // Create publisher for raw JSON data
   pub_raw_ = this->create_publisher<String>(dvl_raw_topic, 10);
 
@@ -43,23 +45,99 @@ RawJsonPublisher::RawJsonPublisher(const rclcpp::NodeOptions & options)
   get_config_server_ = this->create_service<Trigger>(
       get_config_service,
       std::bind(&RawJsonPublisher::get_config, this, std::placeholders::_1, std::placeholders::_2));
-  toggle_server_ = this->create_service<SetBool>(
-      toggle_service,
-      std::bind(&RawJsonPublisher::toggle, this, std::placeholders::_1, std::placeholders::_2));
 
   // Set up the socket connection
   RCLCPP_INFO(this->get_logger(), "Connecting to DVL at %s:%d", tcp_ip_.c_str(), tcp_port_);
-  connect();
+  connect_socket();
 
-  // Reset dead reckoning on startup
-  auto starting_req = std::make_shared<Trigger::Request>();
-  auto starting_res = std::make_shared<Trigger::Response>();
-  reset_dead_reckoning(starting_req, starting_res);
+  // Turning off upon Inactive
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
+  const char* message = success ? "DVL turned off" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
 
-  // Create timer for periodic data collection (30 Hz)
-  timer_ = this->create_wall_timer(std::chrono::milliseconds(33),  // ~30 Hz
-                                   std::bind(&RawJsonPublisher::timer_callback, this));
+  if (!success) { return CallbackReturn::FAILURE; }
+
+  return CallbackReturn::SUCCESS;
 }
+
+CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
+  pub_raw_->on_activate();
+
+  // Turning on during ACTIVE only
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":true}");
+  const char* message = success ? "DVL turned on" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
+
+  if (!success) { return CallbackReturn::FAILURE; }
+
+  // Create timer for periodic data collection (40 Hz)
+  timer_ = this->create_timer(std::chrono::milliseconds(25),  // ~40 Hz
+                                   std::bind(&RawJsonPublisher::timer_callback, this));
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn RawJsonPublisher::on_deactivate(const rclcpp_lifecycle::State &) {
+  // Turning off
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
+  const char* message = success ? "DVL turned off" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
+
+  if (!success) { return CallbackReturn::FAILURE; }
+
+  if (timer_) {
+    timer_->cancel();
+    timer_.reset();
+  }
+  
+  pub_raw_->on_deactivate();
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn RawJsonPublisher::on_cleanup(const rclcpp_lifecycle::State &) {
+  // Turning off
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
+  const char* message = success ? "DVL turned off" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
+
+  if (!success) { return CallbackReturn::FAILURE; }
+
+  close_socket();
+
+  if (timer_) {
+    timer_->cancel();
+  }
+  timer_.reset();
+  pub_raw_.reset();
+
+  reset_dead_reckoning_server_.reset();
+  calibrate_gyro_server_.reset();
+  get_config_server_.reset();
+  
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn RawJsonPublisher::on_shutdown(const rclcpp_lifecycle::State &) {
+  // Turning off
+  bool success = send_dvl_command("\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
+  const char* message = success ? "DVL turned off" : "Failed to toggle DVL";
+  RCLCPP_INFO(this->get_logger(), message);
+
+  if (!success) { return CallbackReturn::FAILURE; }
+
+  if (timer_) {
+    timer_->cancel();
+  }
+  timer_.reset();
+  pub_raw_.reset();
+
+  reset_dead_reckoning_server_.reset();
+  calibrate_gyro_server_.reset();
+  get_config_server_.reset();
+
+  close_socket();
+  return CallbackReturn::SUCCESS;
+}
+
 
 RawJsonPublisher::~RawJsonPublisher()
 {
@@ -69,7 +147,7 @@ RawJsonPublisher::~RawJsonPublisher()
   }
 }
 
-void RawJsonPublisher::connect()
+void RawJsonPublisher::connect_socket()
 {
   if (sock_ >= 0)
   {
@@ -81,7 +159,7 @@ void RawJsonPublisher::connect()
   {
     RCLCPP_ERROR(this->get_logger(), "Socket creation error");
     rclcpp::sleep_for(std::chrono::seconds(1));
-    connect();
+    connect_socket();
     return;
   }
 
@@ -93,7 +171,7 @@ void RawJsonPublisher::connect()
   {
     RCLCPP_WARN(this->get_logger(), "Invalid address");
     rclcpp::sleep_for(std::chrono::seconds(1));
-    connect();
+    connect_socket();
     return;
   }
 
@@ -101,7 +179,7 @@ void RawJsonPublisher::connect()
   {
     RCLCPP_WARN(this->get_logger(), "Connection failed");
     rclcpp::sleep_for(std::chrono::seconds(1));
-    connect();
+    connect_socket();
     return;
   }
 
@@ -109,6 +187,10 @@ void RawJsonPublisher::connect()
   tv.tv_sec = 1;
   tv.tv_usec = 0;
   setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, (const char*) &tv, sizeof tv);
+}
+
+void RawJsonPublisher::close_socket() {
+  if (sock_ >= 0) { close(sock_); sock_ = -1; }
 }
 
 std::string RawJsonPublisher::getData()
@@ -122,7 +204,7 @@ std::string RawJsonPublisher::getData()
     if (n < 1)
     {
       RCLCPP_WARN(this->get_logger(), "Connection lost, reconnecting...");
-      connect();
+      connect_socket();
       continue;
     }
     raw_data.append(buffer.data(), n);
@@ -158,37 +240,44 @@ bool RawJsonPublisher::send_dvl_command(std::string cmd)
     try
     {
       json resp = json::parse(_dr_status_response);
-      std::string response_to = resp["response_to"];
-      if (resp["type"] == "response" && (cmd.find(response_to) != std::string::npos))
+      if (resp["type"] == "response") 
       {
-        if (resp["success"])
+        std::string response_to = resp["response_to"];
+        if (cmd.find(response_to) != std::string::npos) 
         {
-          RCLCPP_WARN(this->get_logger(), "%s successful", cmd.c_str());
-          auto result{resp["result"]};
-          if (result == NULL)
+          if (resp["success"]) 
           {
-            RCLCPP_WARN(this->get_logger(), "No result, likely expected null type return");
+            RCLCPP_WARN(this->get_logger(), "%s successful", cmd.c_str());
+            auto result{resp["result"]};
+            if (result == NULL)
+            {
+              RCLCPP_WARN(this->get_logger(), "No result, likely expected null type return");
+            }
+            else
+            {
+              try
+              {
+                RCLCPP_WARN(this->get_logger(), "DVL Result:\n%s", result.dump(2).c_str());
+              }
+              catch (const std::exception& e)
+              {
+                RCLCPP_WARN(this->get_logger(), "Error in returning result: %s", e.what());
+              }
+            }
+            rclcpp::sleep_for(std::chrono::milliseconds(50));  // wait 50ms for values to zero out
+            return true;
           }
           else
           {
-            try
-            {
-              RCLCPP_WARN(this->get_logger(), "DVL Result:\n%s", result.dump(2).c_str());
-            }
-            catch (const std::exception& e)
-            {
-              RCLCPP_WARN(this->get_logger(), "Error in returning result: %s", e.what());
-            }
+            RCLCPP_ERROR(this->get_logger(), "Dead reckoning reset failed: %s",
+                        resp["error_message"].get<std::string>().c_str());
+            return false;
           }
-          rclcpp::sleep_for(std::chrono::milliseconds(50));  // wait 50ms for values to zero out
-          return true;
         }
-        else
-        {
-          RCLCPP_ERROR(this->get_logger(), "Dead reckoning reset failed: %s",
-                       resp["error_message"].get<std::string>().c_str());
-          return false;
-        }
+      }
+      else if (resp["type"] == "velocity" || resp["type"] == "position_local") 
+      {
+        return true;
       }
       else
       {
@@ -234,17 +323,6 @@ void RawJsonPublisher::calibrate_gyro(const std::shared_ptr<Trigger::Request> re
   bool success = send_dvl_command("\"calibrate_gyro\"");
   res->success = success;
   res->message = success ? "Calibrate gyro successful" : "Calibrate gyro failed";
-}
-
-void RawJsonPublisher::toggle(const std::shared_ptr<SetBool::Request> req,
-                             std::shared_ptr<SetBool::Response> res)
-{
-  bool success =
-      send_dvl_command(req->data ? "\"set_config\",\"parameters\":{\"acoustic_enabled\":true}"
-                                 : "\"set_config\",\"parameters\":{\"acoustic_enabled\":false}");
-  res->success = success;
-  res->message =
-      success ? (req->data ? "DVL turned on" : "DVL turned off") : "Failed to toggle DVL";
 }
 
 void RawJsonPublisher::get_config(const std::shared_ptr<Trigger::Request> req,
