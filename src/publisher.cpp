@@ -70,8 +70,8 @@ CallbackReturn RawJsonPublisher::on_activate(const rclcpp_lifecycle::State &) {
 
   if (!success) { return CallbackReturn::FAILURE; }
 
-  // Create timer for periodic data collection (30 Hz)
-  timer_ = this->create_timer(std::chrono::milliseconds(33),  // ~30 Hz
+  // Create timer for periodic data collection (40 Hz)
+  timer_ = this->create_timer(std::chrono::milliseconds(25),  // ~40 Hz
                                    std::bind(&RawJsonPublisher::timer_callback, this));
   return CallbackReturn::SUCCESS;
 }
