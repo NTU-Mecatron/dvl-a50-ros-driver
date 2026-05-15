@@ -1,5 +1,6 @@
 #include <iomanip>
 #include <iostream>
+#include <netinet/tcp.h>
 
 #include <dvl_a50_ros_driver/publisher.hpp>
 #include <nlohmann/json.hpp>
@@ -155,6 +156,11 @@ void RawJsonPublisher::connect_socket()
   }
 
   sock_ = socket(AF_INET, SOCK_STREAM, 0);
+  // Using TCP_NODELAY to opt out the Nagle's Algorithm. If still has issue, 
+  int opt = 1;
+  setsockopt(sock_, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+  setsockopt(sock_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
   if (sock_ < 0)
   {
     RCLCPP_ERROR(this->get_logger(), "Socket creation error");
@@ -195,31 +201,50 @@ void RawJsonPublisher::close_socket() {
 
 std::string RawJsonPublisher::getData()
 {
-  std::string raw_data;
-  std::vector<char> buffer(1024);
+  std::string raw_data = "";
+  std::vector<char> buffer(4028); 
 
-  while (raw_data.find('\n') == std::string::npos)
+  while (true)
   {
-    ssize_t n = recv(sock_, buffer.data(), buffer.size(), 0);
-    if (n < 1)
+    ssize_t n = recv(sock_, buffer.data(), buffer.size() - 1, 0);
+
+    if (n>0)
     {
-      RCLCPP_WARN(this->get_logger(), "Connection lost, reconnecting...");
-      connect_socket();
-      continue;
+      old_json_.append(buffer.data(), n);
     }
-    raw_data.append(buffer.data(), n);
+    else if (n < 0)
+    {
+      // Buffer is finally empty
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        break; 
+      }
+      else 
+      {
+        RCLCPP_WARN(this->get_logger(), "Connection lost, reconnecting...");
+        connect_socket();
+        return "";
+      } 
+    }
+    else 
+    {
+      connect_socket();
+      return "";
+    }
   }
+  
+  size_t last_nl = old_json_.find_last_of('\n');
 
-  raw_data = old_json_ + raw_data;
-  old_json_ = "";
-
-  size_t pos = raw_data.find('\n');
-
-  // check if we received the full json string
-  if (pos != std::string::npos)
-  {
-    old_json_ = raw_data.substr(pos + 1);
-    raw_data = raw_data.substr(0, pos);
+  if (last_nl != std::string::npos) {
+    // Find the newline before the last one to isolate the final full message
+    size_t second_to_last_nl = old_json_.find_last_of('\n', last_nl - 1);
+    
+    if (second_to_last_nl == std::string::npos) {
+        raw_data = old_json_.substr(0, last_nl);
+    } else {
+        raw_data = old_json_.substr(second_to_last_nl + 1, last_nl - (second_to_last_nl + 1));
+    }
+    
+    old_json_ = old_json_.substr(last_nl + 1);
   }
 
   return raw_data;
